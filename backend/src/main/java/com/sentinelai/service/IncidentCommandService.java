@@ -3,6 +3,7 @@ package com.sentinelai.service;
 import com.sentinelai.model.AuditEvent;
 import com.sentinelai.model.Deployment;
 import com.sentinelai.model.Incident;
+import com.sentinelai.model.IncidentRemediationStepRequest;
 import com.sentinelai.model.IncidentSeverity;
 import com.sentinelai.model.IncidentStatus;
 import com.sentinelai.model.IncidentStatusUpdateRequest;
@@ -84,6 +85,44 @@ public class IncidentCommandService {
             );
         }
         return saved;
+    }
+
+    @Transactional
+    public Incident executeRemediationStep(long id, IncidentRemediationStepRequest request) {
+        Incident incident = incidentRepository.findByIdAndTenantId(id, tenantContext.tenantId())
+                .orElseThrow(() -> new IllegalArgumentException("Incident not found: " + id));
+        if (incident.getStatus() == IncidentStatus.RESOLVED) {
+            throw new IllegalArgumentException("This incident is already resolved; remediation steps can no longer be executed.");
+        }
+
+        boolean alreadyExecuted = incident.getTimeline().stream()
+                .anyMatch(event -> event.getLabel().equals("Remediation step: " + request.step().label()));
+        if (alreadyExecuted) {
+            throw new IllegalArgumentException("Step \"" + request.step().label() + "\" was already executed for this incident.");
+        }
+
+        // First remediation step means mitigation is genuinely underway.
+        if (incident.getStatus() == IncidentStatus.ACTIVE) {
+            incident.transition(IncidentStatus.MITIGATING, request.actor(), "Remediation started.");
+        }
+        incident.addTimelineEvent(
+                request.actor(),
+                "Remediation step: " + request.step().label(),
+                request.step().detail()
+        );
+        audit(
+                request.actor(),
+                "INCIDENT_REMEDIATION_STEP",
+                incident.getIncidentKey(),
+                request.step().label() + " - " + request.step().detail()
+        );
+        operationalEventLogger.info("incident.remediation_step", java.util.Map.of(
+                "incidentKey", incident.getIncidentKey(),
+                "serviceName", incident.getServiceName(),
+                "step", request.step().name(),
+                "actor", request.actor()
+        ));
+        return incidentRepository.save(incident);
     }
 
     private void syncFromDeploymentRisk() {

@@ -111,6 +111,14 @@ export interface IncidentTimelineEvent {
   detail: string;
 }
 
+export type IncidentRemediationStep =
+  | 'ROLLBACK_DEPLOYMENT'
+  | 'RESTART_POD'
+  | 'NOTIFY_SLACK'
+  | 'OPEN_JIRA'
+  | 'ASSIGN_ENGINEER'
+  | 'MONITOR_RESULTS';
+
 export interface Incident {
   id: number;
   incidentKey: string;

@@ -1,6 +1,7 @@
 package com.sentinelai.controller;
 
 import com.sentinelai.model.Incident;
+import com.sentinelai.model.IncidentRemediationStepRequest;
 import com.sentinelai.model.IncidentStatusUpdateRequest;
 import com.sentinelai.service.IncidentCommandService;
 import jakarta.validation.Valid;
@@ -34,5 +35,13 @@ public class IncidentCommandController {
             @Valid @RequestBody IncidentStatusUpdateRequest request
     ) {
         return incidentCommandService.updateStatus(id, request);
+    }
+
+    @PostMapping("/{id}/remediation-step")
+    public Incident executeRemediationStep(
+            @PathVariable long id,
+            @Valid @RequestBody IncidentRemediationStepRequest request
+    ) {
+        return incidentCommandService.executeRemediationStep(id, request);
     }
 }

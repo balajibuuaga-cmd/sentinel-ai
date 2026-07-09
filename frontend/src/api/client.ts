@@ -15,6 +15,7 @@ import type {
   EngineeringPlaybook,
   ExecutiveBriefing,
   Incident,
+  IncidentRemediationStep,
   IncidentStatusUpdateRequest,
   IntegrationConnection,
   IntegrationInstallRequest,
@@ -205,6 +206,11 @@ export const api = {
     request<Incident>(`/api/incidents/${id}/status`, {
       method: 'POST',
       body: JSON.stringify(body),
+    }),
+  executeRemediationStep: (id: number, step: IncidentRemediationStep, actor: string) =>
+    request<Incident>(`/api/incidents/${id}/remediation-step`, {
+      method: 'POST',
+      body: JSON.stringify({ step, actor }),
     }),
   integrationConnections: () => request<IntegrationConnection[]>('/api/integration-connections'),
   integrationSyncHistory: () => request<IntegrationSyncEvent[]>('/api/integration-connections/sync-history'),

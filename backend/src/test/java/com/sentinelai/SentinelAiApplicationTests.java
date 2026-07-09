@@ -515,6 +515,48 @@ class SentinelAiApplicationTests {
         assertThat(tokenAuthenticationService.status().mode()).isEqualTo("hybrid");
     }
 
+    @Test
+    void remediationStepsAreRecordedOnTimelineAndNotRepeatable() throws Exception {
+        String token = login();
+        JsonNode incidents = getJson("/api/incidents", token);
+        assertThat(incidents).hasSizeGreaterThan(0);
+        long incidentId = incidents.get(0).get("id").asLong();
+
+        JsonNode afterStep = postJson("/api/incidents/" + incidentId + "/remediation-step", token, Map.of(
+                "step", "ROLLBACK_DEPLOYMENT",
+                "actor", "release@sentinel.ai"
+        ));
+        assertThat(afterStep.get("status").asText()).isNotEqualTo("ACTIVE");
+        boolean stepOnTimeline = false;
+        for (JsonNode event : afterStep.get("timeline")) {
+            if (event.get("label").asText().equals("Remediation step: Rollback Deployment")) {
+                stepOnTimeline = true;
+            }
+        }
+        assertThat(stepOnTimeline).isTrue();
+
+        // Re-running the same step is rejected rather than double-recorded.
+        mockMvc.perform(post("/api/incidents/" + incidentId + "/remediation-step")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "step", "ROLLBACK_DEPLOYMENT",
+                                "actor", "release@sentinel.ai"
+                        ))))
+                .andExpect(status().isBadRequest());
+
+        // Viewers cannot execute remediation steps.
+        String viewerToken = login("viewer@sentinel.ai", "sentinel-viewer");
+        mockMvc.perform(post("/api/incidents/" + incidentId + "/remediation-step")
+                        .header("Authorization", "Bearer " + viewerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "step", "RESTART_POD",
+                                "actor", "viewer@sentinel.ai"
+                        ))))
+                .andExpect(status().isForbidden());
+    }
+
     private String login() throws Exception {
         return login("release@sentinel.ai", "sentinel-release");
     }

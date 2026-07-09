@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/pr-reviews/*/decision").hasAnyRole("ADMIN", "RELEASE_MANAGER")
                         .requestMatchers(HttpMethod.POST, "/api/architecture/import").hasAnyRole("ADMIN", "RELEASE_MANAGER")
                         .requestMatchers(HttpMethod.POST, "/api/incidents/*/status").hasAnyRole("ADMIN", "RELEASE_MANAGER")
+                        .requestMatchers(HttpMethod.POST, "/api/incidents/*/remediation-step").hasAnyRole("ADMIN", "RELEASE_MANAGER")
                         .requestMatchers(HttpMethod.POST, "/api/integrations/*/simulate").hasAnyRole("ADMIN", "RELEASE_MANAGER")
                         .requestMatchers(HttpMethod.POST, "/api/integration-connections/*/install").hasAnyRole("ADMIN", "RELEASE_MANAGER")
                         .requestMatchers(HttpMethod.POST, "/api/integration-connections/*/sync").hasAnyRole("ADMIN", "RELEASE_MANAGER")

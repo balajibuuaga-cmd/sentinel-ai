@@ -366,6 +366,15 @@ export interface TeamInviteRequest {
   role: string;
 }
 
+export interface AccountProfile {
+  email: string;
+  role: string;
+  tenantId: string;
+  organizationName: string;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
 export interface CiSignalRequest {
   provider: string;
   repository: string;

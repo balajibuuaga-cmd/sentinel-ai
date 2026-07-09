@@ -19,7 +19,6 @@ import java.util.Base64;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @Service
 public class AuthService {
@@ -27,8 +26,6 @@ public class AuthService {
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final Duration LOCKOUT_DURATION = Duration.ofMinutes(15);
     private static final Duration RESET_TOKEN_VALIDITY = Duration.ofMinutes(30);
-    private static final Pattern PASSWORD_HAS_LETTER = Pattern.compile("[A-Za-z]");
-    private static final Pattern PASSWORD_HAS_DIGIT = Pattern.compile("[0-9]");
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
@@ -94,7 +91,7 @@ public class AuthService {
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("An account with this email already exists.");
         }
-        validatePasswordPolicy(request.password());
+        PasswordPolicy.validate(request.password());
 
         String tenantId = slugify(request.organizationName());
         User user = new User(
@@ -145,7 +142,7 @@ public class AuthService {
                 .filter(candidate -> candidate.matchesResetToken(tokenHash))
                 .orElseThrow(() -> new IllegalArgumentException("This reset link is invalid or has expired."));
 
-        validatePasswordPolicy(request.newPassword());
+        PasswordPolicy.validate(request.newPassword());
         user.applyPasswordReset(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
         audit(user, "PASSWORD_RESET_COMPLETED", "Password was reset via emailed link.");
@@ -158,15 +155,6 @@ public class AuthService {
             return Base64.getUrlEncoder().withoutPadding().encodeToString(hashed);
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 is unavailable", ex);
-        }
-    }
-
-    private void validatePasswordPolicy(String password) {
-        if (password.length() < 10) {
-            throw new IllegalArgumentException("Password must be at least 10 characters long.");
-        }
-        if (!PASSWORD_HAS_LETTER.matcher(password).find() || !PASSWORD_HAS_DIGIT.matcher(password).find()) {
-            throw new IllegalArgumentException("Password must contain at least one letter and one digit.");
         }
     }
 

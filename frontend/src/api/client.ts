@@ -1,4 +1,5 @@
 import type {
+  AccountProfile,
   ArchitectureBrain,
   AuditEvent,
   AuthResponse,
@@ -209,4 +210,10 @@ export const api = {
     }),
   removeTeamMember: (id: number) =>
     request<void>(`/api/team/members/${id}`, { method: 'DELETE' }),
+  accountProfile: () => request<AccountProfile>('/api/account/me'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<void>('/api/account/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 };

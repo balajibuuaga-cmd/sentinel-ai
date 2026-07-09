@@ -57,7 +57,7 @@ export default function Sidebar({ health, incidentCount, riskCount }: Props) {
     { label: 'Integrations', icon: Plug, to: '/integrations' },
     { label: 'Operator Console', icon: Server, to: '/operator' },
     { label: 'Team', icon: Users, to: '/team' },
-    { label: 'Settings', icon: Settings },
+    { label: 'Settings', icon: Settings, to: '/settings' },
   ];
 
   return (

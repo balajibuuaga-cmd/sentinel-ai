@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Search, Bell, Zap, Settings, ShieldCheck, LogOut } from 'lucide-react';
 import type { HeaderStatsData } from '../types/dashboard';
 
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function TopBar({ header, notificationCount, onLogout }: Props) {
+  const navigate = useNavigate();
   const initials = header.fullName
     .split(' ')
     .map((part) => part[0])
@@ -43,7 +45,7 @@ export default function TopBar({ header, notificationCount, onLogout }: Props) {
         <button className="icon-pill" title="Quick actions">
           <Zap size={16} />
         </button>
-        <button className="icon-pill" title="Settings">
+        <button className="icon-pill" title="Settings" onClick={() => navigate('/settings')}>
           <Settings size={16} />
         </button>
         <button className="icon-pill" title="Log out" onClick={onLogout}>

@@ -10,9 +10,10 @@ interface Props {
   nodes: ServiceNode[];
   edges: ServiceEdge[];
   riskScores?: Record<string, number>;
+  onRefresh?: () => void;
 }
 
-export default function EngineeringUniverse({ nodes, edges, riskScores }: Props) {
+export default function EngineeringUniverse({ nodes, edges, riskScores, onRefresh }: Props) {
   const [activeTab, setActiveTab] = useState('Services');
   const [mode, setMode] = useState<'3d' | '2d'>('3d');
   const [selected, setSelected] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export default function EngineeringUniverse({ nodes, edges, riskScores }: Props)
           >
             {mode === '3d' ? <Boxes size={14} /> : <LayoutGrid size={14} />} {mode === '3d' ? '3D' : '2D'}
           </button>
-          <button className="icon-pill small">
+          <button className="icon-pill small" onClick={onRefresh} title="Refresh live data">
             <RefreshCw size={14} />
           </button>
           <button className="icon-pill small">

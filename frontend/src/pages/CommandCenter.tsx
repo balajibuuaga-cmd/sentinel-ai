@@ -16,7 +16,7 @@ interface Props {
 
 type Timeframe = 'today' | 'yesterday';
 
-export default function CommandCenter({ data }: Props) {
+export default function CommandCenter({ data, refresh }: Props) {
   const [timeframe, setTimeframe] = useState<Timeframe>('today');
 
   const referenceDate = useMemo(() => {
@@ -76,6 +76,7 @@ export default function CommandCenter({ data }: Props) {
             nodes={data.serviceGraph.nodes}
             edges={data.serviceGraph.edges}
             riskScores={serviceRiskScores}
+            onRefresh={refresh}
           />
           <div className="bottom-charts-row">
             <RiskHeatmapCard data={data.riskHeatmap} />

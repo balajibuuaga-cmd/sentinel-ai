@@ -32,8 +32,8 @@ resource "aws_db_instance" "postgres" {
   backup_window           = "08:00-09:00"
   maintenance_window      = "sun:09:00-sun:10:00"
 
-  deletion_protection = var.enable_deletion_protection
-  skip_final_snapshot = !var.enable_deletion_protection
+  deletion_protection       = var.enable_deletion_protection
+  skip_final_snapshot       = !var.enable_deletion_protection
   final_snapshot_identifier = var.enable_deletion_protection ? null : "${local.name}-final"
 
   auto_minor_version_upgrade = true

@@ -17,6 +17,22 @@ export interface MfaEnrollResponse {
   otpauthUrl: string;
 }
 
+export interface AuthModeStatus {
+  mode: string;
+  demoLoginEnabled: boolean;
+  cognitoConfigured: boolean;
+  cognitoIssuer: string;
+  cognitoAudience: string;
+  cognitoClientId: string;
+  cognitoHostedUiBaseUrl: string;
+  cognitoLoginUrl: string;
+  cognitoLogoutUrl: string;
+  cognitoRedirectUri: string;
+  roleClaim: string;
+  tenantIdClaim: string;
+  organizationNameClaim: string;
+}
+
 export interface RiskReason {
   category: string;
   evidence: string;

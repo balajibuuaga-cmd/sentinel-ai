@@ -6,6 +6,9 @@ import com.sentinelai.model.IntegrationProvider;
 import com.sentinelai.repository.IntegrationTokenSecretRepository;
 import com.sentinelai.security.AuthenticatedUser;
 import com.sentinelai.security.CognitoJwtValidator;
+import com.sentinelai.security.DemoUser;
+import com.sentinelai.security.JwtService;
+import com.sentinelai.security.TokenAuthenticationService;
 import com.sentinelai.service.integrations.IntegrationTokenVault;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -458,6 +461,58 @@ class SentinelAiApplicationTests {
         assertThat(user.get().role()).isEqualTo("ADMIN");
         assertThat(user.get().tenantId()).isEqualTo("customer-prod");
         assertThat(user.get().organizationName()).isEqualTo("Customer Prod");
+    }
+
+    @Test
+    void hybridAuthAcceptsBothLocalAndCognitoTokensSideBySide() throws Exception {
+        KeyPair keyPair = generateRsaKeyPair();
+        String kid = "hybrid-test-key";
+        String issuer = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_HYBRIDTEST";
+        CognitoJwtValidator cognitoJwtValidator = CognitoJwtValidator.withJwks(
+                objectMapper,
+                issuer,
+                "hybrid-client",
+                "custom:role",
+                "custom:tenant_id",
+                "custom:organization_name",
+                jwksJson(kid, (RSAPublicKey) keyPair.getPublic())
+        );
+        JwtService jwtService = new JwtService(objectMapper, "hybrid-test-secret-with-enough-length");
+        TokenAuthenticationService tokenAuthenticationService = new TokenAuthenticationService(
+                objectMapper,
+                jwtService,
+                cognitoJwtValidator,
+                "hybrid-client",
+                "https://sentinel-ai-145026616632.auth.us-east-1.amazoncognito.com",
+                "https://3-90-3-12.nip.io/",
+                "https://3-90-3-12.nip.io/"
+        );
+
+        String localToken = jwtService.issue(new DemoUser("local-user@sentinel.ai", "", "ADMIN", "local-tenant", "Local Co"));
+        Optional<AuthenticatedUser> localUser = tokenAuthenticationService.validate(localToken);
+        assertThat(localUser).isPresent();
+        assertThat(localUser.get().username()).isEqualTo("local-user@sentinel.ai");
+        assertThat(localUser.get().tenantId()).isEqualTo("local-tenant");
+
+        String cognitoToken = signedRs256Jwt(keyPair, kid, Map.ofEntries(
+                Map.entry("iss", issuer),
+                Map.entry("aud", "hybrid-client"),
+                Map.entry("token_use", "id"),
+                Map.entry("sub", "cognito-user-123"),
+                Map.entry("email", "cognito-user@customer.test"),
+                Map.entry("custom:role", "admin"),
+                Map.entry("custom:tenant_id", "cognito-tenant"),
+                Map.entry("custom:organization_name", "Cognito Customer"),
+                Map.entry("exp", Instant.now().plusSeconds(300).getEpochSecond())
+        ));
+        Optional<AuthenticatedUser> cognitoUser = tokenAuthenticationService.validate(cognitoToken);
+        assertThat(cognitoUser).isPresent();
+        assertThat(cognitoUser.get().username()).isEqualTo("cognito-user@customer.test");
+        assertThat(cognitoUser.get().tenantId()).isEqualTo("cognito-tenant");
+
+        // Local email/password login must stay enabled even though Cognito is fully configured above.
+        assertThat(tokenAuthenticationService.demoLoginEnabled()).isTrue();
+        assertThat(tokenAuthenticationService.status().mode()).isEqualTo("hybrid");
     }
 
     private String login() throws Exception {

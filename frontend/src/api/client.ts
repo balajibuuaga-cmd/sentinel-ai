@@ -2,6 +2,7 @@ import type {
   AccountProfile,
   ArchitectureBrain,
   AuditEvent,
+  AuthModeStatus,
   AuthResponse,
   BackendReadinessAssessment,
   BackgroundJob,
@@ -126,6 +127,19 @@ export async function verifyMfaChallenge(challengeToken: string, code: string): 
   const auth = await request<AuthResponse>('/api/auth/mfa/verify', {
     method: 'POST',
     body: JSON.stringify({ challengeToken, code }),
+  });
+  setToken(auth.token);
+  return auth;
+}
+
+export function authStatus(): Promise<AuthModeStatus> {
+  return request<AuthModeStatus>('/api/auth/status');
+}
+
+export async function exchangeCognitoCode(code: string, redirectUri: string): Promise<AuthResponse> {
+  const auth = await request<AuthResponse>('/api/auth/cognito/exchange', {
+    method: 'POST',
+    body: JSON.stringify({ code, redirectUri }),
   });
   setToken(auth.token);
   return auth;

@@ -97,7 +97,9 @@ public class AccountService {
 
     private User currentUser() {
         return userRepository.findByEmail(tenantContext.currentUsername())
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found."));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "This account is managed by your identity provider and has no local profile settings."
+                ));
     }
 
     private void audit(User user, String action, String details) {

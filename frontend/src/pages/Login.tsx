@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { login, verifyMfaChallenge } from '../api/client';
+import { authStatus, login, verifyMfaChallenge } from '../api/client';
 import HolographicAvatar from '../components/HolographicAvatar';
 
 interface Props {
@@ -15,6 +15,24 @@ export default function Login({ onAuthenticated }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
   const [code, setCode] = useState('');
+  const [cognitoLoginUrl, setCognitoLoginUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cancelled = { current: false };
+    authStatus()
+      .then((status) => {
+        if (cancelled.current) return;
+        if (status.cognitoConfigured && status.cognitoLoginUrl) {
+          setCognitoLoginUrl(status.cognitoLoginUrl);
+        }
+      })
+      .catch(() => {
+        // Cognito is an optional extra sign-in path; silently skip if status can't be reached.
+      });
+    return () => {
+      cancelled.current = true;
+    };
+  }, []);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -135,6 +153,15 @@ export default function Login({ onAuthenticated }: Props) {
             {submitting ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+
+        {cognitoLoginUrl ? (
+          <>
+            <div className="auth-divider">or</div>
+            <a className="auth-submit auth-submit-secondary" href={cognitoLoginUrl}>
+              Continue with Cognito
+            </a>
+          </>
+        ) : null}
 
         <div className="auth-switch">
           <Link to="/forgot-password">Forgot password?</Link>

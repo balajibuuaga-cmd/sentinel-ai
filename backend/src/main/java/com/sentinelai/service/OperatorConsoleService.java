@@ -100,7 +100,7 @@ public class OperatorConsoleService {
                 rateLimitService.redisEnabled(),
                 rateLimitService.backend(),
                 rateLimitService.limit(),
-                readinessStatus(auth, attentionIntegrations),
+                readinessStatus(attentionIntegrations),
                 deploymentRepository.findByTenantId(tenant.tenantId()).size(),
                 integrationConnectionRepository.countByTenantIdAndStatus(tenant.tenantId(), IntegrationStatus.CONNECTED),
                 attentionIntegrations,
@@ -111,10 +111,7 @@ public class OperatorConsoleService {
         );
     }
 
-    private String readinessStatus(AuthModeStatus auth, long attentionIntegrations) {
-        if ("cognito".equalsIgnoreCase(auth.mode()) && !auth.cognitoConfigured()) {
-            return "auth configuration required";
-        }
+    private String readinessStatus(long attentionIntegrations) {
         if (attentionIntegrations > 0) {
             return "provider attention required";
         }

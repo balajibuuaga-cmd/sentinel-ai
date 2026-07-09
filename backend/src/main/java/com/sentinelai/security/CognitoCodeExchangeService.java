@@ -21,7 +21,6 @@ public class CognitoCodeExchangeService {
     private final ObjectMapper objectMapper;
     private final CognitoJwtValidator cognitoJwtValidator;
     private final HttpClient httpClient;
-    private final String mode;
     private final String hostedUiBaseUrl;
     private final String clientId;
     private final String clientSecret;
@@ -29,7 +28,6 @@ public class CognitoCodeExchangeService {
     public CognitoCodeExchangeService(
             ObjectMapper objectMapper,
             CognitoJwtValidator cognitoJwtValidator,
-            @Value("${sentinel.auth.mode:demo}") String mode,
             @Value("${sentinel.auth.cognito.hosted-ui-base-url:}") String hostedUiBaseUrl,
             @Value("${sentinel.auth.cognito.client-id:}") String clientId,
             @Value("${sentinel.auth.cognito.client-secret:}") String clientSecret
@@ -37,14 +35,13 @@ public class CognitoCodeExchangeService {
         this.objectMapper = objectMapper;
         this.cognitoJwtValidator = cognitoJwtValidator;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
-        this.mode = mode;
         this.hostedUiBaseUrl = trimTrailingSlash(hostedUiBaseUrl);
         this.clientId = clientId;
         this.clientSecret = clientSecret;
     }
 
     public Optional<AuthResponse> exchange(CognitoExchangeRequest request) {
-        if (!"cognito".equalsIgnoreCase(mode) || isBlank(hostedUiBaseUrl) || isBlank(clientId)) {
+        if (isBlank(hostedUiBaseUrl) || isBlank(clientId)) {
             return Optional.empty();
         }
         try {

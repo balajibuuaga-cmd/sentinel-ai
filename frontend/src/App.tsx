@@ -12,6 +12,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const CognitoCallback = lazy(() => import('./pages/CognitoCallback'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
 const AIBriefing = lazy(() => import('./pages/AIBriefing'));
 const AIMemory = lazy(() => import('./pages/AIMemory'));
@@ -63,6 +64,7 @@ function AuthGate({ onAuthenticated }: { onAuthenticated: () => void }) {
         <Route path="/signup" element={<Signup onAuthenticated={onAuthenticated} />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/cognito/callback" element={<CognitoCallback onAuthenticated={onAuthenticated} />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Suspense>
@@ -111,6 +113,7 @@ function AuthenticatedApp({ data, refresh }: { data: DashboardData; refresh: () 
             <Route path="/signup" element={<Navigate to="/" replace />} />
             <Route path="/forgot-password" element={<Navigate to="/" replace />} />
             <Route path="/reset-password" element={<Navigate to="/" replace />} />
+            <Route path="/auth/cognito/callback" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </div>

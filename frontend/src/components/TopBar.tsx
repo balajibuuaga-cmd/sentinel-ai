@@ -38,7 +38,7 @@ export default function TopBar({ header, notificationCount, onLogout }: Props) {
         <button className="icon-pill" title="Compliance">
           <ShieldCheck size={16} />
         </button>
-        <button className="icon-pill" title="Notifications">
+        <button className="icon-pill" title="Notifications" onClick={() => navigate('/integrations')}>
           <Bell size={16} />
           {notificationCount > 0 ? <span className="dot-badge">{notificationCount}</span> : null}
         </button>

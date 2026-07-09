@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/request").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/confirm").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/cognito/exchange").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/mfa/verify").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/status").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/webhooks/github").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/deployments/*/approval").hasAnyRole("ADMIN", "RELEASE_MANAGER")

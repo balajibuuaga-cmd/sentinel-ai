@@ -469,8 +469,9 @@ class SentinelAiApplicationTests {
                 "username", username,
                 "password", password
         ));
-        assertThat(login.get("token").asText()).isNotBlank();
-        return login.get("token").asText();
+        JsonNode authResponse = login.get("authResponse");
+        assertThat(authResponse.get("token").asText()).isNotBlank();
+        return authResponse.get("token").asText();
     }
 
     private JsonNode getJson(String url, String token) throws Exception {

@@ -18,6 +18,8 @@ import type {
   IntegrationInstallRequest,
   IntegrationProvider,
   IntegrationSyncEvent,
+  LoginResult,
+  MfaEnrollResponse,
   OperatorConsole,
   OrganizationProfile,
   PullRequestDecisionRequest,
@@ -109,10 +111,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function login(email: string, password: string): Promise<AuthResponse> {
-  const auth = await request<AuthResponse>('/api/auth/login', {
+export async function login(email: string, password: string): Promise<LoginResult> {
+  const result = await request<LoginResult>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username: email, password }),
+  });
+  if (result.authResponse) {
+    setToken(result.authResponse.token);
+  }
+  return result;
+}
+
+export async function verifyMfaChallenge(challengeToken: string, code: string): Promise<AuthResponse> {
+  const auth = await request<AuthResponse>('/api/auth/mfa/verify', {
+    method: 'POST',
+    body: JSON.stringify({ challengeToken, code }),
   });
   setToken(auth.token);
   return auth;
@@ -217,6 +230,17 @@ export const api = {
     request<void>('/api/account/change-password', {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  enrollMfa: () => request<MfaEnrollResponse>('/api/account/mfa/enroll', { method: 'POST' }),
+  confirmMfa: (code: string) =>
+    request<void>('/api/account/mfa/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+  disableMfa: (password: string) =>
+    request<void>('/api/account/mfa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
     }),
   playbooks: () => request<EngineeringPlaybook[]>('/api/playbooks'),
   backendReadiness: () => request<BackendReadinessAssessment>('/api/playbooks/backend-readiness'),

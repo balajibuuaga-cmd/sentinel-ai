@@ -5,6 +5,8 @@ import com.sentinelai.model.User;
 import com.sentinelai.repository.AuditEventRepository;
 import com.sentinelai.repository.UserRepository;
 import com.sentinelai.service.EmailService;
+import com.sentinelai.service.MfaChallengeStore;
+import com.sentinelai.service.TotpService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,8 @@ public class AuthService {
     private final TokenAuthenticationService tokenAuthenticationService;
     private final EmailService emailService;
     private final String resetLinkBaseUrl;
+    private final TotpService totpService;
+    private final MfaChallengeStore mfaChallengeStore;
 
     public AuthService(
             UserRepository userRepository,
@@ -43,7 +47,9 @@ public class AuthService {
             JwtService jwtService,
             TokenAuthenticationService tokenAuthenticationService,
             EmailService emailService,
-            @Value("${sentinel.email.reset-link-base-url}") String resetLinkBaseUrl
+            @Value("${sentinel.email.reset-link-base-url}") String resetLinkBaseUrl,
+            TotpService totpService,
+            MfaChallengeStore mfaChallengeStore
     ) {
         this.userRepository = userRepository;
         this.auditEventRepository = auditEventRepository;
@@ -52,9 +58,11 @@ public class AuthService {
         this.tokenAuthenticationService = tokenAuthenticationService;
         this.emailService = emailService;
         this.resetLinkBaseUrl = resetLinkBaseUrl;
+        this.totpService = totpService;
+        this.mfaChallengeStore = mfaChallengeStore;
     }
 
-    public Optional<AuthResponse> login(LoginRequest request) {
+    public Optional<LoginResult> login(LoginRequest request) {
         if (!tokenAuthenticationService.demoLoginEnabled()) {
             return Optional.empty();
         }
@@ -79,9 +87,35 @@ public class AuthService {
             return Optional.empty();
         }
 
+        if (user.isMfaEnabled()) {
+            String challengeToken = mfaChallengeStore.issueChallenge(user.getEmail());
+            audit(user, "LOGIN_MFA_CHALLENGE_ISSUED", "Password verified; awaiting MFA code.");
+            return Optional.of(LoginResult.mfaRequired(challengeToken));
+        }
+
         user.recordSuccessfulLogin();
         userRepository.save(user);
         audit(user, "LOGIN_SUCCESS", "Login succeeded.");
+
+        return Optional.of(LoginResult.success(toAuthResponse(user)));
+    }
+
+    public Optional<AuthResponse> verifyMfaChallenge(MfaChallengeVerifyRequest request) {
+        Optional<String> maybeUsername = mfaChallengeStore.resolveAndConsume(request.challengeToken());
+        if (maybeUsername.isEmpty()) {
+            throw new IllegalArgumentException("This login challenge is invalid or has expired. Please log in again.");
+        }
+        User user = userRepository.findByEmail(maybeUsername.get())
+                .orElseThrow(() -> new IllegalArgumentException("This login challenge is invalid or has expired. Please log in again."));
+
+        if (!totpService.verifyCode(user.getMfaSecret(), request.code())) {
+            audit(user, "LOGIN_MFA_FAILED", "Incorrect verification code.");
+            return Optional.empty();
+        }
+
+        user.recordSuccessfulLogin();
+        userRepository.save(user);
+        audit(user, "LOGIN_MFA_SUCCESS", "Login succeeded with MFA.");
 
         return Optional.of(toAuthResponse(user));
     }

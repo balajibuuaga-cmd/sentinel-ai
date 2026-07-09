@@ -5,6 +5,8 @@ import com.sentinelai.security.AuthService;
 import com.sentinelai.security.CognitoCodeExchangeService;
 import com.sentinelai.security.CognitoExchangeRequest;
 import com.sentinelai.security.LoginRequest;
+import com.sentinelai.security.LoginResult;
+import com.sentinelai.security.MfaChallengeVerifyRequest;
 import com.sentinelai.security.PasswordResetConfirmRequest;
 import com.sentinelai.security.PasswordResetRequest;
 import com.sentinelai.security.SignupRequest;
@@ -29,8 +31,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResult> login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(401).build());
+    }
+
+    @PostMapping("/mfa/verify")
+    public ResponseEntity<AuthResponse> verifyMfaChallenge(@Valid @RequestBody MfaChallengeVerifyRequest request) {
+        return authService.verifyMfaChallenge(request)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(401).build());
     }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { login } from '../api/client';
+import { login, verifyMfaChallenge } from '../api/client';
 import HolographicAvatar from '../components/HolographicAvatar';
 
 interface Props {
@@ -13,19 +13,89 @@ export default function Login({ onAuthenticated }: Props) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [code, setCode] = useState('');
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      await login(email, password);
-      onAuthenticated();
+      const result = await login(email, password);
+      if (result.mfaRequired && result.mfaChallengeToken) {
+        setChallengeToken(result.mfaChallengeToken);
+      } else {
+        onAuthenticated();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed.');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleVerifyCode(event: FormEvent) {
+    event.preventDefault();
+    if (!challengeToken) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await verifyMfaChallenge(challengeToken, code);
+      onAuthenticated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (challengeToken) {
+    return (
+      <div className="auth-page">
+        <div className="panel auth-card">
+          <div className="auth-brand">
+            <HolographicAvatar active size={72} />
+            <h1>Sentinel AI</h1>
+            <p>Enter the 6-digit code from your authenticator app</p>
+          </div>
+
+          <form className="auth-form" onSubmit={handleVerifyCode}>
+            {error ? <div className="auth-error">{error}</div> : null}
+            <label>
+              Verification code
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                required
+                maxLength={6}
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+                placeholder="123456"
+              />
+            </label>
+            <button className="auth-submit" type="submit" disabled={submitting}>
+              {submitting ? 'Verifying...' : 'Verify'}
+            </button>
+          </form>
+
+          <div className="auth-switch">
+            <button
+              type="button"
+              className="auth-link-button"
+              onClick={() => {
+                setChallengeToken(null);
+                setCode('');
+                setError(null);
+              }}
+            >
+              Back to sign in
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

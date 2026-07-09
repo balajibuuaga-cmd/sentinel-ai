@@ -8,6 +8,7 @@ public record AccountProfileView(
         String tenantId,
         String organizationName,
         Instant createdAt,
-        Instant lastLoginAt
+        Instant lastLoginAt,
+        boolean mfaEnabled
 ) {
 }

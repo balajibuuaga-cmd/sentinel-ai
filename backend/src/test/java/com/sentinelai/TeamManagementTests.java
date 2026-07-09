@@ -191,7 +191,7 @@ class TeamManagementTests {
                 "username", email,
                 "password", password
         ), status().isOk());
-        return response.get("token").asText();
+        return response.get("authResponse").get("token").asText();
     }
 
     private JsonNode getJson(String url, String token) throws Exception {

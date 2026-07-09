@@ -6,6 +6,17 @@ export interface AuthResponse {
   organizationName: string;
 }
 
+export interface LoginResult {
+  authResponse: AuthResponse | null;
+  mfaRequired: boolean;
+  mfaChallengeToken: string | null;
+}
+
+export interface MfaEnrollResponse {
+  secret: string;
+  otpauthUrl: string;
+}
+
 export interface RiskReason {
   category: string;
   evidence: string;
@@ -373,6 +384,7 @@ export interface AccountProfile {
   organizationName: string;
   createdAt: string;
   lastLoginAt: string | null;
+  mfaEnabled: boolean;
 }
 
 export interface EngineeringPlaybook {

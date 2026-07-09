@@ -47,6 +47,13 @@ public class User {
 
     private Instant resetTokenExpiresAt;
 
+    @Column(nullable = false)
+    private boolean mfaEnabled;
+
+    private String mfaSecret;
+
+    private String pendingMfaSecret;
+
     protected User() {
     }
 
@@ -100,6 +107,34 @@ public class User {
 
     public void changeRole(String role) {
         this.role = role;
+    }
+
+    public void startMfaEnrollment(String secret) {
+        this.pendingMfaSecret = secret;
+    }
+
+    public void confirmMfaEnrollment() {
+        this.mfaSecret = this.pendingMfaSecret;
+        this.pendingMfaSecret = null;
+        this.mfaEnabled = true;
+    }
+
+    public void disableMfa() {
+        this.mfaEnabled = false;
+        this.mfaSecret = null;
+        this.pendingMfaSecret = null;
+    }
+
+    public boolean isMfaEnabled() {
+        return mfaEnabled;
+    }
+
+    public String getMfaSecret() {
+        return mfaSecret;
+    }
+
+    public String getPendingMfaSecret() {
+        return pendingMfaSecret;
     }
 
     public Long getId() {

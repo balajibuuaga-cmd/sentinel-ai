@@ -28,6 +28,8 @@ const ExecutiveMode = lazy(() => import('./pages/ExecutiveMode'));
 const RiskGlobePage = lazy(() => import('./pages/RiskGlobePage'));
 const Team = lazy(() => import('./pages/Team'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
 
 function useIntegrationOAuthCallback() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -103,6 +105,8 @@ function AuthenticatedApp({ data, refresh }: { data: DashboardData; refresh: () 
             <Route path="/risk-globe" element={<RiskGlobePage />} />
             <Route path="/team" element={<Team />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/knowledge-base" element={<KnowledgeBase />} />
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="/signup" element={<Navigate to="/" replace />} />
             <Route path="/forgot-password" element={<Navigate to="/" replace />} />

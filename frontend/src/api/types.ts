@@ -375,6 +375,32 @@ export interface AccountProfile {
   lastLoginAt: string | null;
 }
 
+export interface EngineeringPlaybook {
+  id: string;
+  title: string;
+  category: string;
+  summary: string;
+  checks: string[];
+  sentinelActions: string[];
+}
+
+export interface BackendReadinessCheck {
+  category: string;
+  status: string;
+  score: number;
+  evidence: string;
+  gap: string;
+  nextAction: string;
+}
+
+export interface BackendReadinessAssessment {
+  overallScore: number;
+  maturityLevel: string;
+  summary: string;
+  checks: BackendReadinessCheck[];
+  nextActions: string[];
+}
+
 export interface CiSignalRequest {
   provider: string;
   repository: string;

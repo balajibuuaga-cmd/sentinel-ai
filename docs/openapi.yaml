@@ -1,0 +1,223 @@
+openapi: 3.0.3
+info:
+  title: Sentinel AI API
+  version: 0.1.0
+  description: AI Chief Engineer API for deployment risk intelligence.
+servers:
+  - url: http://localhost:8090
+security:
+  - bearerAuth: []
+components:
+  headers:
+    RequestId:
+      description: Request correlation id generated or preserved by Sentinel.
+      schema:
+        type: string
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        requestId:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: string
+        timestamp:
+          type: string
+          format: date-time
+paths:
+  /api/auth/login:
+    post:
+      security: []
+      summary: Issue a demo JWT
+      responses:
+        "200":
+          description: Auth token
+  /api/auth/status:
+    get:
+      security: []
+      summary: Active auth mode and Cognito claim mapping
+      responses:
+        "200":
+          description: Auth mode status
+  /api/auth/cognito/exchange:
+    post:
+      security: []
+      summary: Exchange Cognito authorization code for a validated Sentinel session
+      responses:
+        "200":
+          description: Auth token
+  /api/organization/current:
+    get:
+      summary: Current tenant workspace status
+      responses:
+        "200":
+          description: Organization profile
+  /api/deployments:
+    get:
+      summary: List tenant deployment reviews
+      responses:
+        "200":
+          description: Deployment list
+  /api/deployments/{id}/approval:
+    post:
+      summary: Approve, block, or request changes for a deployment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated deployment
+  /api/ai/command:
+    post:
+      summary: Ask Sentinel a release-risk question
+      responses:
+        "200":
+          description: AI Chief Engineer answer
+  /api/ai/provider:
+    get:
+      summary: Active reasoning provider
+      responses:
+        "200":
+          description: Provider status
+  /api/playbooks:
+    get:
+      summary: Curated engineering playbooks
+      responses:
+        "200":
+          description: Playbook list
+  /api/playbooks/backend-readiness:
+    get:
+      summary: Backend shipping checklist assessment
+      responses:
+        "200":
+          description: Sentinel backend readiness assessment
+  /api/incidents:
+    get:
+      summary: Live incident command center
+      responses:
+        "200":
+          description: Active incident list
+  /api/incidents/{id}/status:
+    post:
+      summary: Update incident response status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated incident
+  /api/operator/console:
+    get:
+      summary: Secured runtime readiness console
+      responses:
+        "200":
+          description: Operator readiness summary
+  /api/jobs:
+    get:
+      summary: Durable background job queue
+      responses:
+        "200":
+          description: Recent background jobs
+  /api/jobs/{id}/retry:
+    post:
+      summary: Requeue a failed background job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Requeued background job
+  /api/webhooks/deliveries:
+    get:
+      summary: Signed webhook delivery records and dead-letter state
+      responses:
+        "200":
+          description: Recent webhook deliveries
+  /api/webhooks/deliveries/{id}/replay:
+    post:
+      summary: Queue replay for a stored webhook delivery when replay policy allows it
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery queued for replay
+  /api/integration-connections:
+    get:
+      summary: List provider installation state
+      responses:
+        "200":
+          description: Integration connections
+  /api/integration-connections/sync-history:
+    get:
+      summary: Recent integration sync health events
+      responses:
+        "200":
+          description: Sync event list
+  /api/integration-connections/{provider}/install:
+    post:
+      summary: Complete simulated or real OAuth installation callback
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [GITHUB, JIRA, CI]
+      responses:
+        "200":
+          description: Connected integration
+  /api/integration-connections/{id}/sync:
+    post:
+      summary: Sync an integration and record health history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Synced integration
+  /api/webhooks/github/simulate:
+    post:
+      summary: Simulate GitHub deployment signal ingestion
+      responses:
+        "200":
+          description: Deployment review
+  /api/integrations/ci/simulate:
+    post:
+      summary: Attach CI build evidence to a deployment
+      responses:
+        "200":
+          description: Deployment review
+  /api/integrations/jira/simulate:
+    post:
+      summary: Attach Jira work context to a deployment
+      responses:
+        "200":
+          description: Deployment review
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

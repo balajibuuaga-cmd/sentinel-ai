@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sentinel AI</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="command-rail">
+        <div class="brand">
+          <div class="brand-mark">S</div>
+          <div>
+            <strong>Sentinel AI</strong>
+            <span>AI Chief Engineer</span>
+          </div>
+        </div>
+
+        <nav class="rail-nav">
+          <a class="active" href="#briefing">Briefing</a>
+          <a href="#executive">Executive</a>
+          <a href="#incidents">Incidents</a>
+          <a href="#playbooks">Playbooks</a>
+          <a href="#queue">Release Queue</a>
+          <a href="#memory">AI Memory</a>
+          <a href="#dna">Engineering DNA</a>
+            <a href="#aiEngineer">AI Engineer</a>
+            <a href="#architecture">Architecture</a>
+            <a href="#integrations">Integrations</a>
+            <a href="#operatorConsole">Operator</a>
+            <a href="#jobs">Jobs</a>
+            <a href="#webhookDeliveries">Deliveries</a>
+            <a href="#webhook">GitHub Intake</a>
+            <a href="#security">Security</a>
+            <a href="#audit">Audit</a>
+        </nav>
+
+        <section class="demo-flight">
+          <div class="demo-flight-header">
+            <p class="eyebrow">Demo mode</p>
+            <span id="demoProgressText">0/7 complete</span>
+          </div>
+          <div class="demo-progress">
+            <span id="demoProgressBar"></span>
+          </div>
+          <ol id="demoChecklist" class="demo-checklist" aria-label="Sentinel AI demo checklist">
+            <li data-demo-step="signedIn"><span></span>Sign in</li>
+            <li data-demo-step="briefing"><span></span>Show executive briefing</li>
+            <li data-demo-step="command"><span></span>Ask Sentinel a question</li>
+            <li data-demo-step="memory"><span></span>Inspect AI memory</li>
+            <li data-demo-step="prReview"><span></span>Review PR #418</li>
+            <li data-demo-step="architecture"><span></span>Open Architecture Brain</li>
+            <li data-demo-step="decision"><span></span>Record a release decision</li>
+          </ol>
+          <button id="runLiveDemoButton" class="demo-run-button" type="button">Run live incident demo</button>
+          <p id="liveDemoStatus" class="demo-status">Ready for a guided production scenario.</p>
+          <a class="launch-link" href="/landing.html">Demo entry page</a>
+        </section>
+
+        <section class="operator-panel">
+          <p class="eyebrow">Operator</p>
+          <strong id="sessionUser">Use a demo account</strong>
+          <span id="sessionRole" class="role-pill">Signed out</span>
+          <div id="tenantBadge" class="tenant-badge">No workspace</div>
+          <div class="session-actions">
+            <button id="refreshButton" class="ghost-button" type="button">Refresh</button>
+            <button id="logoutButton" class="ghost-button hidden" type="button">Sign out</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <section id="loginPanel" class="login-gate">
+          <form id="loginForm" class="login-form">
+            <div>
+              <p class="eyebrow">Secure workspace</p>
+              <h1>Sentinel AI</h1>
+              <p class="lede">Talk with an AI Chief Engineer that reviews deployments, correlates engineering signals, and recommends release decisions.</p>
+            </div>
+            <label>
+              Email
+              <input id="username" type="email" autocomplete="username" value="release@sentinel.ai" />
+            </label>
+            <label>
+              Password
+              <input id="password" type="password" autocomplete="current-password" value="sentinel-release" />
+            </label>
+            <button id="demoLoginButton" type="submit">Enter command center</button>
+            <button id="cognitoLoginButton" class="hidden" type="button">Sign in with Cognito</button>
+          </form>
+          <p id="loginError" class="error-text"></p>
+        </section>
+
+        <section id="briefing" class="chief-console">
+          <canvas id="sentinel3dScene" class="sentinel-3d-scene" aria-hidden="true"></canvas>
+          <header class="chief-header">
+            <div>
+              <p class="eyebrow">Chief Engineer briefing</p>
+              <h1>I am reviewing your release system.</h1>
+              <p id="briefingLine" class="lede">Sign in and I will summarize what needs attention.</p>
+            </div>
+            <div id="commandStatus" class="status-orb">Standing by</div>
+          </header>
+
+          <div id="commandTelemetry" class="command-telemetry" aria-label="Sentinel reasoning telemetry"></div>
+
+          <div id="conversation" class="conversation"></div>
+
+          <form id="commandForm" class="command-form">
+            <input id="commandInput" autocomplete="off" aria-label="Ask Sentinel about deployment risk" placeholder="Ask Sentinel about deployment risk..." />
+            <button type="submit">Ask</button>
+          </form>
+
+          <div class="prompt-row">
+            <button class="prompt-chip" type="button" data-prompt="What deployments are unsafe right now?">Unsafe releases</button>
+            <button class="prompt-chip" type="button" data-prompt="Should I merge this pull request?">Merge advice</button>
+            <button class="prompt-chip" type="button" data-prompt="Where is our architecture most fragile?">Architecture risk</button>
+            <button class="prompt-chip" type="button" data-prompt="What does your memory say about this release?">AI memory</button>
+            <button class="prompt-chip" type="button" data-prompt="Why would you block the selected release?">Block rationale</button>
+            <button class="prompt-chip" type="button" data-prompt="What should the release manager do next?">Next action</button>
+          </div>
+        </section>
+
+        <section id="executive" class="executive-briefing">
+          <div>
+            <p class="eyebrow">AI executive briefing</p>
+            <h1 id="executiveGreeting">Good morning.</h1>
+            <p id="executiveSummary" class="lede">Sentinel is waiting for engineering signals.</p>
+          </div>
+          <div id="executiveMetrics" class="executive-metrics"></div>
+          <div id="executiveRecommendation" class="executive-recommendation"></div>
+        </section>
+
+        <section id="incidents" class="incident-command-center">
+          <header class="section-heading compact">
+            <div>
+              <p class="eyebrow">Live Incident Command</p>
+              <h2>Active engineering response</h2>
+            </div>
+            <span id="incidentCount" class="system-pill">0 active</span>
+          </header>
+          <div id="incidentCommandCenter" class="incident-grid empty-state">Sign in and Sentinel will open incidents from high-risk production signals.</div>
+        </section>
+
+        <section id="playbooks" class="playbook-panel">
+          <header class="section-heading compact">
+            <div>
+              <p class="eyebrow">Engineering Playbooks</p>
+              <h2>Backend knowledge base</h2>
+            </div>
+            <span id="playbookCount" class="system-pill">0 loaded</span>
+          </header>
+          <div id="backendReadiness" class="backend-readiness empty-state">Sentinel will assess this product against the backend shipping checklist.</div>
+          <div id="engineeringPlaybooks" class="playbook-grid empty-state">Sign in and Sentinel will load production engineering playbooks.</div>
+        </section>
+
+        <section class="console-layout">
+          <aside class="context-column">
+            <header class="section-heading">
+              <p class="eyebrow">Org context</p>
+              <h2>Engineering Pulse</h2>
+            </header>
+            <section class="workspace-card">
+              <div>
+                <p class="eyebrow">Customer workspace</p>
+                <h3 id="workspaceName">Sign in</h3>
+                <span id="workspaceStatus">Tenant context will appear here.</span>
+              </div>
+              <div id="onboardingSteps" class="onboarding-steps"></div>
+            </section>
+            <section class="workspace-card">
+              <div>
+                <p class="eyebrow">Chief Engineer Brain</p>
+                <h3 id="aiProviderName">Provider offline</h3>
+                <span id="aiProviderStatus">Sign in to inspect reasoning provider.</span>
+              </div>
+            </section>
+            <div id="briefingStats" class="pulse-grid"></div>
+
+            <section id="queue" class="release-section">
+              <header class="section-heading compact">
+                <p class="eyebrow">Release queue</p>
+                <h2>Needs Judgment</h2>
+              </header>
+              <div id="deploymentList" class="release-list"></div>
+            </section>
+
+            <section id="dna" class="dna-section">
+              <header class="section-heading compact">
+                <p class="eyebrow">Engineering DNA</p>
+                <h2>Maturity signal</h2>
+              </header>
+              <div id="engineeringDna" class="dna-grid"></div>
+            </section>
+          </aside>
+
+          <aside class="intelligence-column">
+            <section class="decision-panel">
+              <header class="section-heading">
+                <p class="eyebrow">Selected release</p>
+                <h2 id="detailTitle">No deployment selected</h2>
+              </header>
+              <div id="deploymentDetail" class="empty-state">Sign in to inspect Sentinel reasoning.</div>
+            </section>
+
+            <section id="memory" class="memory-panel">
+              <header class="section-heading compact">
+                <p class="eyebrow">AI memory</p>
+                <h2>Pattern recall</h2>
+              </header>
+              <div id="memoryTimeline" class="memory-timeline"></div>
+            </section>
+
+            <section id="aiEngineer" class="ai-engineer-panel">
+              <header class="section-heading compact">
+                <p class="eyebrow">AI Engineer</p>
+                <h2>Should I merge this PR?</h2>
+              </header>
+              <form id="prReviewForm" class="pr-review-form">
+                <input id="prRepository" value="sentinel-ai/payment-api" aria-label="PR repository" />
+                <input id="prNumber" type="number" value="418" aria-label="PR number" />
+                <input id="prAuthor" value="david" aria-label="PR author" />
+                <input id="prServiceName" value="payment-api" aria-label="PR service" />
+                <input id="prOwnerTeam" value="Payments Platform" aria-label="PR owner team" />
+                <select id="prCiStatus" aria-label="PR CI status">
+                  <option value="failure">failure</option>
+                  <option value="pending">pending</option>
+                  <option value="success">success</option>
+                </select>
+                <textarea id="prTitle" aria-label="PR title">Refactor payment authorization and settlement retry path</textarea>
+                <textarea id="prChangedFiles" aria-label="PR changed files">src/payments/AuthorizePayment.java
+src/payments/SettlementRetryPolicy.java
+db/migration/V43__payment_authorization_index.sql</textarea>
+                <button type="submit">Ask AI Engineer</button>
+              </form>
+              <div id="prReviewResult" class="pr-review-result empty-state">Simulate a PR review and Sentinel will give a merge recommendation.</div>
+            </section>
+
+            <section id="webhook" class="integration-panel">
+              <header class="section-heading compact">
+                <p class="eyebrow">GitHub intake</p>
+                <h2>Simulate a PR signal</h2>
+              </header>
+              <form id="webhookForm" class="webhook-form">
+                <input id="repo" value="sentinel-ai/payment-api" aria-label="Repository" />
+                <input id="serviceName" value="payment-api" aria-label="Service name" />
+                <input id="ownerTeam" value="Payments Platform" aria-label="Owner team" />
+                <select id="environment" aria-label="Environment">
+                  <option value="production">production</option>
+                  <option value="staging">staging</option>
+                </select>
+                <input id="commitSha" value="f84c2ab" aria-label="Commit SHA" />
+                <select id="ciStatus" aria-label="CI status">
+                  <option value="failure">failure</option>
+                  <option value="success">success</option>
+                  <option value="pending">pending</option>
+                </select>
+                <textarea id="pullRequestTitle" aria-label="Pull request title">Update payment authorization path and add migration</textarea>
+                <textarea id="changedFiles" aria-label="Changed files">src/payments/AuthorizePayment.java
+db/migration/V42__settlement_retry.sql
+src/payments/LedgerWriter.java</textarea>
+                <button type="submit">Ingest signal</button>
+              </form>
+            </section>
+
+            <section class="integration-panel">
+              <header class="section-heading compact">
+                <p class="eyebrow">CI intake</p>
+                <h2>Attach build evidence</h2>
+              </header>
+              <form id="ciSignalForm" class="webhook-form">
+                <input id="ciProvider" value="GitHub Actions" aria-label="CI provider" />
+                <input id="ciRepository" value="sentinel-ai/payment-api" aria-label="CI repository" />
+                <input id="ciServiceName" value="payment-api" aria-label="CI service name" />
+                <input id="ciOwnerTeam" value="Payments Platform" aria-label="CI owner team" />
+                <select id="ciEnvironment" aria-label="CI environment">
+                  <option value="production">production</option>
+                  <option value="staging">staging</option>
+                </select>
+                <input id="ciCommitSha" value="f84c2ab" aria-label="CI commit SHA" />
+                <input id="ciPipelineName" value="payment-regression" aria-label="CI pipeline name" />
+                <select id="ciSignalStatus" aria-label="CI status">
+                  <option value="failure">failure</option>
+                  <option value="pending">pending</option>
+                  <option value="success">success</option>
+                </select>
+                <input id="ciFailedTests" type="number" value="6" aria-label="Failed tests" />
+                <input id="ciCoverageDelta" type="number" value="-14" aria-label="Coverage delta" />
+                <textarea id="ciFailedSuites" aria-label="Failed suites">CheckoutRegression
+LedgerSettlementIT</textarea>
+                <button type="submit">Ingest CI</button>
+              </form>
+            </section>
+
+            <section class="integration-panel">
+              <header class="section-heading compact">
+                <p class="eyebrow">Jira intake</p>
+                <h2>Attach work context</h2>
+              </header>
+              <form id="jiraSignalForm" class="webhook-form">
+                <input id="jiraIssueKey" value="PAY-912" aria-label="Jira issue key" />
+                <input id="jiraServiceName" value="payment-api" aria-label="Jira service name" />
+                <input id="jiraOwnerTeam" value="Payments Platform" aria-label="Jira owner team" />
+                <select id="jiraEnvironment" aria-label="Jira environment">
+                  <option value="production">production</option>
+                  <option value="staging">staging</option>
+                </select>
+                <select id="jiraPriority" aria-label="Jira priority">
+                  <option value="Critical">Critical</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                </select>
+                <select id="jiraStatus" aria-label="Jira status">
+                  <option value="In QA">In QA</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Done">Done</option>
+                </select>
+                <select id="jiraIssueType" aria-label="Jira issue type">
+                  <option value="Incident">Incident</option>
+                  <option value="Bug">Bug</option>
+                  <option value="Story">Story</option>
+                </select>
+                <input id="jiraCommitSha" value="f84c2ab" aria-label="Jira commit SHA" />
+                <textarea id="jiraSummary" aria-label="Jira summary">Customer-impacting payment capture defect requires settlement retry changes</textarea>
+                <textarea id="jiraLabels" aria-label="Jira labels">hotfix
+customer-impact</textarea>
+                <button type="submit">Ingest Jira</button>
+              </form>
+            </section>
+          </aside>
+        </section>
+
+        <section id="architecture" class="architecture-panel">
+          <header class="section-heading compact">
+            <div>
+              <p class="eyebrow">Architecture Brain</p>
+              <h2>Service map intelligence</h2>
+            </div>
+            <button id="architectureRefreshButton" class="ghost-button" type="button">Analyze</button>
+          </header>
+          <div id="architectureBrain" class="architecture-brain empty-state">Sign in and Sentinel will map service fragility.</div>
+        </section>
+
+        <section id="integrations" class="architecture-panel">
+          <header class="section-heading compact">
+            <div>
+              <p class="eyebrow">Production integrations</p>
+              <h2>Connect engineering systems</h2>
+            </div>
+            <button id="integrationRefreshButton" class="ghost-button" type="button">Refresh</button>
+          </header>
+          <div id="integrationConnections" class="integration-connections empty-state">Sign in to connect GitHub, Jira, and CI providers.</div>
+        </section>
+
+        <section id="operatorConsole" class="operator-console-panel">
+          <header class="section-heading compact">
+            <div>
+              <p class="eyebrow">Operator Console</p>
+              <h2>Runtime readiness</h2>
+            </div>
+            <span class="system-pill">Admin surface</span>
+          </header>
+          <div id="operatorConsoleContent" class="operator-console-content empty-state">Sign in as an operator and Sentinel will report production readiness.</div>
+        </section>
+
+        <section id="jobs" class="operator-console-panel">
+          <header class="section-heading compact">
+            <div>
+              <p class="eyebrow">Durable work</p>
+              <h2>Background jobs</h2>
+            </div>
+            <button id="jobRefreshButton" class="ghost-button" type="button">Refresh</button>
+          </header>
+          <div id="backgroundJobs" class="background-jobs empty-state">Sign in and Sentinel will show retry, follow-up, and replay jobs.</div>
+        </section>
+
+        <section id="webhookDeliveries" class="operator-console-panel">
+          <header class="section-heading compact">
+            <div>
+              <p class="eyebrow">Webhook dead letters</p>
+              <h2>Delivery replay</h2>
+            </div>
+            <button id="webhookDeliveryRefreshButton" class="ghost-button" type="button">Refresh</button>
+          </header>
+          <div id="webhookDeliveriesList" class="webhook-deliveries empty-state">Signed webhook deliveries will appear here with replay state.</div>
+        </section>
+
+        <section class="evidence-layout">
+          <section id="security" class="evidence-panel">
+            <header class="section-heading compact">
+              <p class="eyebrow">AWS-ready architecture</p>
+              <h2>Security posture</h2>
+            </header>
+            <div id="securityControls" class="security-grid"></div>
+          </section>
+
+          <section id="audit" class="evidence-panel">
+            <header class="section-heading compact">
+              <p class="eyebrow">Proof trail</p>
+              <h2>Recent decisions</h2>
+            </header>
+            <div id="auditEvents" class="audit-list"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,35 @@
+aws_region  = "us-east-1"
+environment = "prod"
+
+# Build and push the Dockerfile to ECR or another private registry, then set this.
+container_image = "123456789012.dkr.ecr.us-east-1.amazonaws.com/sentinel-ai:latest"
+
+# Optional but recommended for production HTTPS.
+# certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+# app_base_url = "https://sentinel.example.com"
+
+# Cognito hosted UI domains are globally unique within an AWS region.
+# cognito_domain_prefix = "sentinel-ai-prod-your-company"
+
+# Enable after creating provider OAuth apps and setting client ids/secrets.
+integrations_real_exchange_enabled = false
+# github_oauth_client_id     = "..."
+# github_oauth_client_secret = "..."
+# jira_oauth_client_id       = "..."
+# jira_oauth_client_secret   = "..."
+# jira_cloud_id              = "..."
+# ci_oauth_client_id         = "..."
+# ci_oauth_client_secret     = "..."
+# ci_oauth_authorize_url     = "https://ci.example.com/oauth/authorize"
+# ci_oauth_token_url         = "https://ci.example.com/oauth/token"
+# ci_runs_url                = "https://ci.example.com/api/runs"
+
+allowed_ingress_cidrs = ["0.0.0.0/0"]
+
+desired_count        = 2
+worker_desired_count = 1
+task_cpu             = 1024
+task_memory          = 2048
+db_instance_class    = "db.t4g.micro"
+
+enable_deletion_protection = true

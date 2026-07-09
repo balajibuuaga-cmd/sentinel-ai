@@ -1,0 +1,14 @@
+package com.sentinelai.model;
+
+public enum EngineeringEventType {
+    DEPLOYMENT_CREATED,
+    GITHUB_PR_INGESTED,
+    CI_SIGNAL,
+    INCIDENT_PATTERN,
+    DATABASE_MIGRATION,
+    DEPENDENCY_RISK,
+    APPROVAL_DECISION,
+    RELEASE_BLOCKED,
+    PR_REVIEW,
+    PR_MERGE_DECISION
+}

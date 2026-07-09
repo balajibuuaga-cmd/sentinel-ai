@@ -1,0 +1,17 @@
+target/
+.DS_Store
+.idea/
+*.iml
+.env
+.env.local
+node_modules/
+frontend/dist/
+*.log
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+crash.log
+.mvn/wrapper/apache-maven-*/
+.mvn/wrapper/apache-maven-*-bin.tar.gz
+.claude/settings.local.json

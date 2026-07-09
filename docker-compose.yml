@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sentinel_ai
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - sentinel_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 8090
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sentinel_ai
+      SPRING_DATASOURCE_USERNAME: sentinel
+      SPRING_DATASOURCE_PASSWORD: sentinel_dev_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      SENTINEL_REDIS_RATE_LIMIT_ENABLED: "true"
+      SENTINEL_REDIS_HEALTH_ENABLED: "true"
+      SENTINEL_REDIS_HOST: redis
+      SENTINEL_REDIS_PORT: 6379
+      SENTINEL_JWT_SECRET: replace-with-a-long-random-local-secret
+      SENTINEL_GITHUB_WEBHOOK_SECRET: local-webhook-secret
+      SENTINEL_API_ENABLED: "true"
+      SENTINEL_WORKER_ENABLED: "false"
+    ports:
+      - "8090:8090"
+
+  worker:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 8091
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sentinel_ai
+      SPRING_DATASOURCE_USERNAME: sentinel
+      SPRING_DATASOURCE_PASSWORD: sentinel_dev_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      SENTINEL_REDIS_RATE_LIMIT_ENABLED: "true"
+      SENTINEL_REDIS_HEALTH_ENABLED: "true"
+      SENTINEL_REDIS_HOST: redis
+      SENTINEL_REDIS_PORT: 6379
+      SENTINEL_JWT_SECRET: replace-with-a-long-random-local-secret
+      SENTINEL_GITHUB_WEBHOOK_SECRET: local-webhook-secret
+      SENTINEL_API_ENABLED: "false"
+      SENTINEL_WORKER_ENABLED: "true"
+      SENTINEL_JOBS_WORKER_DELAY_MS: 15000
+      SENTINEL_WEBHOOK_DELIVERY_CLEANUP_DELAY_MS: 60000
+
+volumes:
+  sentinel_postgres:

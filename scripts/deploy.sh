@@ -9,7 +9,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 EC2_HOST="${SENTINEL_EC2_HOST:-3.90.3.12}"
 EC2_USER="${SENTINEL_EC2_USER:-ec2-user}"
 SSH_KEY="${SENTINEL_EC2_SSH_KEY:-$HOME/.ssh/sentinel-ai-deploy-key}"
-APP_URL="${SENTINEL_APP_URL:-https://3-90-3-12.nip.io}"
+APP_URL="${SENTINEL_APP_URL:-https://getsentinelai.dev}"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then

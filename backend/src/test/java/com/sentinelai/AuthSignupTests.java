@@ -7,16 +7,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,28 +29,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         }
 )
 @AutoConfigureMockMvc
+@Import(EmailTestConfig.class)
 class AuthSignupTests {
-
-    record SentEmail(String to, String subject, String body) {
-    }
-
-    static class CapturingEmailService implements EmailService {
-        final ConcurrentLinkedDeque<SentEmail> sent = new ConcurrentLinkedDeque<>();
-
-        @Override
-        public void send(String to, String subject, String bodyText) {
-            sent.add(new SentEmail(to, subject, bodyText));
-        }
-    }
-
-    @TestConfiguration
-    static class EmailTestConfig {
-        @Bean
-        @Primary
-        EmailService emailService() {
-            return new CapturingEmailService();
-        }
-    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -162,7 +139,7 @@ class AuthSignupTests {
                 .andExpect(status().isNoContent());
 
         CapturingEmailService capturing = (CapturingEmailService) emailService;
-        SentEmail sentEmail = capturing.sent.stream()
+        CapturingEmailService.SentEmail sentEmail = capturing.sent.stream()
                 .filter(candidate -> candidate.to().equals(email))
                 .reduce((first, second) -> second)
                 .orElseThrow(() -> new AssertionError("No reset email captured for " + email));

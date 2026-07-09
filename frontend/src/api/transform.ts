@@ -21,7 +21,7 @@ function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
-function humanize(value: string): string {
+export function humanize(value: string): string {
   return value
     .toLowerCase()
     .split('_')

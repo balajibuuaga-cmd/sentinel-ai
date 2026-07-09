@@ -56,7 +56,7 @@ export default function Sidebar({ health, incidentCount, riskCount }: Props) {
     { label: 'Knowledge Base', icon: BookOpen },
     { label: 'Integrations', icon: Plug, to: '/integrations' },
     { label: 'Operator Console', icon: Server, to: '/operator' },
-    { label: 'Teams', icon: Users },
+    { label: 'Team', icon: Users, to: '/team' },
     { label: 'Settings', icon: Settings },
   ];
 

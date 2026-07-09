@@ -25,4 +25,9 @@ public class TenantContext {
     public String organizationName() {
         return current().organizationName();
     }
+
+    public String currentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null ? authentication.getName() : null;
+    }
 }

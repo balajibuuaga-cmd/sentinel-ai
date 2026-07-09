@@ -2955,6 +2955,9 @@
   font-weight: 600;
   color: var(--text);
   text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .operator-row-meta {
@@ -3454,4 +3457,70 @@
 
 .auth-switch a:hover {
   text-decoration: underline;
+}
+
+/* ---------- team management ---------- */
+
+.team-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.team-invite-card {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.team-invite-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.team-invite-form input {
+  flex: 1;
+  min-width: 220px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+.team-invite-form select,
+.team-roster select {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.team-invite-form .auth-submit {
+  width: auto;
+  margin-top: 0;
+  padding: 9px 18px;
+}
+
+.team-roster {
+  padding: 16px 18px;
+}
+
+.team-role-label {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  padding: 4px 10px;
+}
+
+.team-roster .operator-row-title {
+  text-transform: none;
 }

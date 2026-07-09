@@ -351,6 +351,21 @@ export interface OrganizationProfile {
   onboardingSteps: OnboardingStep[];
 }
 
+export interface TeamMember {
+  id: number;
+  email: string;
+  role: string;
+  locked: boolean;
+  you: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface TeamInviteRequest {
+  email: string;
+  role: string;
+}
+
 export interface CiSignalRequest {
   provider: string;
   repository: string;

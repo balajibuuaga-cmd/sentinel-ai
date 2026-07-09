@@ -98,6 +98,10 @@ public class User {
         this.lockedUntil = null;
     }
 
+    public void changeRole(String role) {
+        this.role = role;
+    }
+
     public Long getId() {
         return id;
     }

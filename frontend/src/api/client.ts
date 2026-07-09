@@ -20,6 +20,8 @@ import type {
   PullRequestDecisionRequest,
   PullRequestReview,
   PullRequestReviewRequest,
+  TeamInviteRequest,
+  TeamMember,
   WebhookDelivery,
 } from './types';
 
@@ -194,4 +196,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  teamMembers: () => request<TeamMember[]>('/api/team/members'),
+  inviteTeamMember: (body: TeamInviteRequest) =>
+    request<TeamMember>('/api/team/invite', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateTeamMemberRole: (id: number, role: string) =>
+    request<TeamMember>(`/api/team/members/${id}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
+  removeTeamMember: (id: number) =>
+    request<void>(`/api/team/members/${id}`, { method: 'DELETE' }),
 };

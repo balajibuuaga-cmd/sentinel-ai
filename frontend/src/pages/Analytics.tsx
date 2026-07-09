@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../api/client';
-import type { Deployment, Incident, IntegrationConnection, PullRequestReview } from '../api/types';
+import type { AiUsageSummary, Deployment, Incident, IntegrationConnection, PullRequestReview } from '../api/types';
 
 const RISK_COLORS: Record<string, string> = {
   CRITICAL: 'var(--red)',
@@ -53,23 +53,37 @@ const tooltipStyle = {
   labelStyle: { color: 'var(--text)' },
 };
 
+function formatCostUsd(value: number): string {
+  if (value === 0) return '$0.00';
+  if (value < 0.01) return `$${value.toFixed(4)}`;
+  return `$${value.toFixed(2)}`;
+}
+
+function formatTokens(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  return String(value);
+}
+
 export default function Analytics() {
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [prReviews, setPrReviews] = useState<PullRequestReview[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
+  const [aiUsage, setAiUsage] = useState<AiUsageSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const cancelled = { current: false };
-    Promise.all([api.deployments(), api.prReviews(), api.incidents(), api.integrationConnections()])
-      .then(([deploymentData, prData, incidentData, integrationData]) => {
+    Promise.all([api.deployments(), api.prReviews(), api.incidents(), api.integrationConnections(), api.aiUsage()])
+      .then(([deploymentData, prData, incidentData, integrationData, aiUsageData]) => {
         if (cancelled.current) return;
         setDeployments(deploymentData);
         setPrReviews(prData);
         setIncidents(incidentData);
         setIntegrations(integrationData);
+        setAiUsage(aiUsageData);
         setLoading(false);
       })
       .catch((err) => {
@@ -121,6 +135,79 @@ export default function Analytics() {
 
   return (
     <div className="team-page">
+      {aiUsage ? (
+        <div className="panel dna-breakdown">
+          <div className="chart-card-header">AI Usage &amp; Cost (Bedrock)</div>
+          {aiUsage.totalCalls === 0 ? (
+            <div className="chart-empty">
+              No LLM calls recorded yet. Usage appears here as Sentinel makes real Bedrock calls
+              (deployment explanations, PR reviews, briefings, copilot answers).
+            </div>
+          ) : (
+            <>
+              <div className="ai-usage-stats">
+                <div className="ai-usage-stat">
+                  <div className="ai-usage-stat-value">{formatCostUsd(aiUsage.estimatedCostUsd)}</div>
+                  <div className="ai-usage-stat-label">Estimated cost</div>
+                </div>
+                <div className="ai-usage-stat">
+                  <div className="ai-usage-stat-value">{aiUsage.totalCalls}</div>
+                  <div className="ai-usage-stat-label">LLM calls</div>
+                </div>
+                <div className="ai-usage-stat">
+                  <div className="ai-usage-stat-value">
+                    {formatTokens(aiUsage.totalInputTokens)} / {formatTokens(aiUsage.totalOutputTokens)}
+                  </div>
+                  <div className="ai-usage-stat-label">Tokens in / out</div>
+                </div>
+                <div className="ai-usage-stat">
+                  <div className="ai-usage-stat-value">{aiUsage.averageLatencyMs}ms</div>
+                  <div className="ai-usage-stat-label">Avg latency</div>
+                </div>
+                <div className="ai-usage-stat">
+                  <div className={`ai-usage-stat-value ${aiUsage.failedCalls > 0 ? 'ai-usage-stat-warn' : ''}`}>
+                    {aiUsage.failedCalls}
+                  </div>
+                  <div className="ai-usage-stat-label">Fallbacks triggered</div>
+                </div>
+              </div>
+
+              <table className="ai-usage-table">
+                <thead>
+                  <tr>
+                    <th>Operation</th>
+                    <th>Calls</th>
+                    <th>Tokens in</th>
+                    <th>Tokens out</th>
+                    <th>Est. cost</th>
+                    <th>Avg latency</th>
+                    <th>Fallbacks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiUsage.byOperation.map((op) => (
+                    <tr key={op.operation}>
+                      <td>{humanizeLabel(op.operation)}</td>
+                      <td>{op.calls}</td>
+                      <td>{formatTokens(op.inputTokens)}</td>
+                      <td>{formatTokens(op.outputTokens)}</td>
+                      <td>{formatCostUsd(op.estimatedCostUsd)}</td>
+                      <td>{op.averageLatencyMs}ms</td>
+                      <td className={op.failedCalls > 0 ? 'ai-usage-stat-warn' : ''}>{op.failedCalls}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="chart-card-footnote">
+                Token counts and latency are reported by Bedrock per call; cost is estimated from published
+                per-token pricing ({aiUsage.recentCalls[0]?.model ?? 'Claude'}). Fallbacks are calls where
+                Bedrock failed and the deterministic engine answered instead.
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+
       <div className="bottom-charts-row">
         <div className="panel chart-card">
           <div className="chart-card-header">Deployment Risk Levels</div>

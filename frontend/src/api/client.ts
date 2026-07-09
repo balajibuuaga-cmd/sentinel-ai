@@ -1,5 +1,6 @@
 import type {
   AccountProfile,
+  AiUsageSummary,
   ArchitectureBrain,
   AuditEvent,
   AuthModeStatus,
@@ -181,6 +182,7 @@ export const api = {
   incidents: () => request<Incident[]>('/api/incidents'),
   architectureBrain: () => request<ArchitectureBrain>('/api/architecture/brain'),
   auditEvents: () => request<AuditEvent[]>('/api/audit-events'),
+  aiUsage: () => request<AiUsageSummary>('/api/ai/usage'),
   askCommand: (command: string, deploymentId: number | null = null) =>
     request<CommandResponse>('/api/ai/command', {
       method: 'POST',

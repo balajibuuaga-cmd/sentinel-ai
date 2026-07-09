@@ -17,6 +17,39 @@ export interface MfaEnrollResponse {
   otpauthUrl: string;
 }
 
+export interface AiUsageOperationStats {
+  operation: string;
+  calls: number;
+  failedCalls: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+  averageLatencyMs: number;
+}
+
+export interface AiUsageEventView {
+  operation: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+  estimatedCostUsd: number;
+  succeeded: boolean;
+  createdAt: string;
+}
+
+export interface AiUsageSummary {
+  totalCalls: number;
+  successfulCalls: number;
+  failedCalls: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  estimatedCostUsd: number;
+  averageLatencyMs: number;
+  byOperation: AiUsageOperationStats[];
+  recentCalls: AiUsageEventView[];
+}
+
 export interface AuthModeStatus {
   mode: string;
   demoLoginEnabled: boolean;

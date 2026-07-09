@@ -3502,6 +3502,67 @@
   text-decoration: underline;
 }
 
+/* ---------- ai usage & cost ---------- */
+
+.ai-usage-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+
+.ai-usage-stat {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.ai-usage-stat-value {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ai-usage-stat-warn {
+  color: var(--amber);
+}
+
+.ai-usage-stat-label {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ai-usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.ai-usage-table th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-usage-table td {
+  padding: 8px 10px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-usage-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 /* ---------- team management ---------- */
 
 .team-page {

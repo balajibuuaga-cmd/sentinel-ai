@@ -5,6 +5,7 @@ import com.sentinelai.model.PullRequestRecommendation;
 import com.sentinelai.model.PullRequestReviewRequest;
 import com.sentinelai.model.RiskLevel;
 import com.sentinelai.model.RiskReason;
+import com.sentinelai.service.AiUsageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,15 +51,20 @@ public class AnthropicChiefEngineerReasoningProvider implements ChiefEngineerRea
 
     private final BedrockRuntimeClient client;
     private final String model;
+    private final AiUsageService aiUsageService;
     private final DeterministicChiefEngineerReasoningProvider fallback = new DeterministicChiefEngineerReasoningProvider();
 
-    public AnthropicChiefEngineerReasoningProvider(@Value("${sentinel.ai.model:}") String configuredModel) {
+    public AnthropicChiefEngineerReasoningProvider(
+            @Value("${sentinel.ai.model:}") String configuredModel,
+            AiUsageService aiUsageService
+    ) {
         this.client = BedrockRuntimeClient.builder()
                 .region(AWS_REGION)
                 .build();
         this.model = (configuredModel == null || configuredModel.isBlank() || configuredModel.equals(UNCONFIGURED_MODEL_PLACEHOLDER))
                 ? DEFAULT_MODEL
                 : configuredModel;
+        this.aiUsageService = aiUsageService;
     }
 
     @Override
@@ -86,6 +92,7 @@ public class AnthropicChiefEngineerReasoningProvider implements ChiefEngineerRea
                     + "Dependencies: " + String.join(", ", deployment.getDependencies()) + "\n"
                     + "Evidence:\n" + formatReasons(reasons);
             return callClaude(
+                    "deployment_explanation",
                     "You are Sentinel AI, an AI Chief Engineer that explains deployment release risk to engineers in 2-3 sentences of plain English. "
                             + "Be concrete and cite the strongest evidence. Do not restate the raw score or level verbatim; explain what it means. "
                             + "Reply in plain prose only, no markdown formatting (no asterisks, bullet points, or headers).",
@@ -113,6 +120,7 @@ public class AnthropicChiefEngineerReasoningProvider implements ChiefEngineerRea
                     + "CI status: " + request.ciStatus() + ". Risk score: " + score + "%. Recommendation: " + recommendation + ".\n"
                     + linkedInfo;
             return callClaude(
+                    "pull_request_review",
                     "You are Sentinel AI, an AI Engineer that explains pull request merge/wait/block recommendations to engineers in 2-3 sentences. "
                             + "Justify the recommendation using the specific evidence given. "
                             + "Reply in plain prose only, no markdown formatting (no asterisks, bullet points, or headers).",
@@ -141,6 +149,7 @@ public class AnthropicChiefEngineerReasoningProvider implements ChiefEngineerRea
                     + "Strongest evidence: " + strongestReason.evidence() + "\n"
                     + "Recommendation: " + assessment.recommendation();
             return callClaude(
+                    "executive_briefing",
                     "You are Sentinel AI, an AI Chief Engineer writing a short executive briefing paragraph (3-4 sentences) "
                             + "summarizing today's release risk posture for a VP of Engineering. Be direct and specific. "
                             + "Reply in plain prose only, no markdown formatting (no asterisks, bullet points, or headers).",
@@ -165,6 +174,7 @@ public class AnthropicChiefEngineerReasoningProvider implements ChiefEngineerRea
                     + "Memory notes: " + context.memoryAnswer() + "\n"
                     + "Engineering DNA notes: " + context.engineeringDnaAnswer();
             return callClaude(
+                    "copilot_question",
                     "You are Sentinel AI, an AI Chief Engineer answering a release manager's question directly in 2-4 sentences, "
                             + "grounded only in the evidence provided. Do not invent facts not present in the context. "
                             + "Reply in plain prose only, no markdown formatting (no asterisks, bullet points, or headers).",
@@ -175,7 +185,8 @@ public class AnthropicChiefEngineerReasoningProvider implements ChiefEngineerRea
         }
     }
 
-    private String callClaude(String systemPrompt, String userPrompt) {
+    private String callClaude(String operation, String systemPrompt, String userPrompt) {
+        long startedAt = System.currentTimeMillis();
         try {
             ConverseRequest request = ConverseRequest.builder()
                     .modelId(model)
@@ -187,14 +198,27 @@ public class AnthropicChiefEngineerReasoningProvider implements ChiefEngineerRea
                     .inferenceConfig(InferenceConfiguration.builder().maxTokens(500).build())
                     .build();
             ConverseResponse response = client.converse(request);
+            recordUsage(operation, response, startedAt);
             return response.output().message().content().stream()
                     .map(ContentBlock::text)
                     .filter(text -> text != null && !text.isBlank())
                     .reduce((left, right) -> left + right)
                     .orElseThrow(() -> new IllegalStateException("Bedrock response contained no text content"));
         } catch (BedrockRuntimeException e) {
+            aiUsageService.record(operation, model, 0, 0, System.currentTimeMillis() - startedAt, false);
             throw new RuntimeException("Bedrock Converse call failed: " + e.getMessage(), e);
         }
+    }
+
+    private void recordUsage(String operation, ConverseResponse response, long startedAt) {
+        int inputTokens = response.usage() != null && response.usage().inputTokens() != null
+                ? response.usage().inputTokens() : 0;
+        int outputTokens = response.usage() != null && response.usage().outputTokens() != null
+                ? response.usage().outputTokens() : 0;
+        long latencyMs = response.metrics() != null && response.metrics().latencyMs() != null
+                ? response.metrics().latencyMs()
+                : System.currentTimeMillis() - startedAt;
+        aiUsageService.record(operation, model, inputTokens, outputTokens, latencyMs, true);
     }
 
     private String formatReasons(List<RiskReason> reasons) {

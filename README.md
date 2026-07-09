@@ -8,6 +8,18 @@ Sentinel AI answers one high-value question:
 
 The MVP correlates deployment signals from GitHub, Jira, CI, logs, service dependencies, and incident history to produce a conversational release judgment, risk score, plain-English explanation, recommendation, approval decision, and audit trail.
 
+## Current Live Deployment
+
+The app is live right now at **https://3-90-3-12.nip.io/** (a free stopgap hostname pointing at the EC2 box below — swap in a real domain whenever convenient, the TLS setup carries over unchanged). This is the *actual* running system, distinct from the aspirational "AWS Security Target" described further down:
+
+- **Backend**: single EC2 instance (`t4g.micro`) running the Spring Boot jar as a systemd service (`sentinel-ai`), behind Nginx (TLS via Let's Encrypt, auto-renewing).
+- **Database**: real RDS PostgreSQL instance (`sentinel-ai-db`), not the in-memory H2 default.
+- **Auth**: real signup/login, BCrypt password hashing, per-account lockout after repeated failures, and email-based password reset via AWS SES — all DB-backed (`User` entity + Flyway migrations `V5`/`V6`), not the Cognito path described below.
+- **AI reasoning**: real AWS Bedrock calls (Claude), via an IAM instance role scoped to just `bedrock:InvokeModel`.
+- **Deploys**: `./scripts/deploy.sh` rebuilds both apps, ships them to the instance, restarts the service, and polls until healthy.
+
+The `infra/aws/*.tf` Terraform and the Cognito/ECS/WAF architecture described under **AWS Security Target** represent a *possible future production target*, not what's currently deployed — see the note in that section before running `terraform apply` and expecting it to match the live app.
+
 ## Product Wedge
 
 Most engineering tools tell teams what happened after production breaks. Sentinel AI feels like an AI Chief Engineer that reviews the organization continuously before production breaks:
@@ -325,6 +337,8 @@ The scoring engine stays deterministic, while explanation, recommendation, execu
 - OpenAPI documentation lives in `docs/openapi.yaml`.
 
 ## AWS Security Target
+
+> **Not yet applied.** This section and the Terraform under `infra/aws` describe a possible future production architecture (Cognito-based auth, ECS Fargate, WAF). It has never been run against a real AWS account and does not reflect the app's actual current deployment — see [Current Live Deployment](#current-live-deployment) above for what's really running.
 
 The production version should use:
 

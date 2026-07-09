@@ -2,6 +2,8 @@
 
 Terraform for an AWS-ready Sentinel AI production baseline.
 
+> **Status: not yet applied.** The app currently deployed and live is a single EC2 instance + real RDS Postgres, provisioned manually (see the top-level [README](../../README.md#current-live-deployment) and `scripts/deploy.sh`), using DB-backed auth rather than the Cognito flow described here. This Terraform module is a possible future migration target for scaling beyond a single instance — running `terraform apply` today would create a second, parallel, disconnected set of AWS resources rather than modify what's live.
+
 ## What It Creates
 
 - VPC across 2-3 availability zones

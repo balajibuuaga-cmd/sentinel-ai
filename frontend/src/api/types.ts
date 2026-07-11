@@ -50,6 +50,29 @@ export interface AiUsageSummary {
   recentCalls: AiUsageEventView[];
 }
 
+export type SecretVerdict = 'BLOCKED' | 'CLEARED' | 'WARN';
+export type SecretFindingSource = 'SCANNER' | 'RISK_GATE';
+
+export interface SecretFinding {
+  line: number;
+  category: string;
+  maskedSnippet: string;
+  source: SecretFindingSource;
+  verdict: SecretVerdict;
+  reason: string;
+  aiJudged: boolean;
+}
+
+export interface SecretScanResponse {
+  linesScanned: number;
+  blockedCount: number;
+  clearedCount: number;
+  warnedCount: number;
+  wouldBlockCommit: boolean;
+  aiGateAvailable: boolean;
+  findings: SecretFinding[];
+}
+
 export interface AuthModeStatus {
   mode: string;
   demoLoginEnabled: boolean;

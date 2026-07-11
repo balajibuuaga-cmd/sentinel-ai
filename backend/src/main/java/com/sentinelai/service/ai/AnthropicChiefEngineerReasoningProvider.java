@@ -23,6 +23,8 @@ import software.amazon.awssdk.services.bedrockruntime.model.Message;
 import software.amazon.awssdk.services.bedrockruntime.model.SystemContentBlock;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Calls Claude directly through AWS's own Bedrock Runtime SDK (Converse API), using the
@@ -183,6 +185,69 @@ public class AnthropicChiefEngineerReasoningProvider implements ChiefEngineerRea
             log.warn("Bedrock call failed for deploymentQuestionAnswer, falling back to deterministic reasoning", e);
             return fallback.deploymentQuestionAnswer(context);
         }
+    }
+
+    @Override
+    public Optional<SecretGateVerdict> judgeMaskedScannerHit(String extension, List<String> maskedLines, int focusLine) {
+        try {
+            String response = callClaude(
+                    "secret_downgrade",
+                    "You are Sentinel Shield's downgrade gate. A deterministic secret scanner blocked a line of code; "
+                            + "every candidate secret value in the window below is masked with asterisks. Decide from context alone "
+                            + "whether the masked value on the focus line is a REAL secret (keep it blocked) or a FALSE ALARM "
+                            + "(placeholder, example, fixture, docs, or non-secret identifier). Clearing a real secret is the "
+                            + "catastrophic error: when uncertain, keep it blocked. "
+                            + "Reply with exactly two lines: 'VERDICT: BLOCK' or 'VERDICT: CLEAR', then 'REASON: <one sentence>'.",
+                    gateWindow(extension, maskedLines, focusLine));
+            return parseGateVerdict(response);
+        } catch (Exception e) {
+            log.warn("Bedrock call failed for secret downgrade gate; keeping the scanner hit blocked", e);
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<SecretGateVerdict> judgeRiskCandidate(String extension, List<String> rawLines, int focusLine) {
+        try {
+            String response = callClaude(
+                    "secret_risk",
+                    "You are Sentinel Shield's risk gate. A deterministic secret scanner did NOT fire on the focus line "
+                            + "below, but it still looks secret-bearing. Decide whether the focus line exposes a REAL credential "
+                            + "that the scanner missed (warn) or is safe (placeholder, example, config key name, test fixture, "
+                            + "clearly fake value). Missing a real secret is the catastrophic error: when uncertain, warn. "
+                            + "Reply with exactly two lines: 'VERDICT: BLOCK' or 'VERDICT: CLEAR', then 'REASON: <one sentence>'.",
+                    gateWindow(extension, rawLines, focusLine));
+            return parseGateVerdict(response);
+        } catch (Exception e) {
+            log.warn("Bedrock call failed for secret risk gate; falling back to entropy heuristic", e);
+            return Optional.empty();
+        }
+    }
+
+    private String gateWindow(String extension, List<String> lines, int focusLine) {
+        StringBuilder builder = new StringBuilder("File extension: ").append(extension == null || extension.isBlank() ? "<none>" : extension).append("\n");
+        for (int i = 0; i < lines.size(); i++) {
+            builder.append(i == focusLine ? ">>> " : "    ").append(lines.get(i)).append("\n");
+        }
+        builder.append("Focus line is marked with '>>>'.");
+        return builder.toString();
+    }
+
+    private Optional<SecretGateVerdict> parseGateVerdict(String response) {
+        String upper = response.toUpperCase(Locale.ROOT);
+        boolean sawBlock = upper.contains("VERDICT: BLOCK");
+        boolean sawClear = upper.contains("VERDICT: CLEAR");
+        if (sawBlock == sawClear) {
+            // Missing or contradictory verdict - treat as no usable judgment so the
+            // caller applies its conservative fallback.
+            return Optional.empty();
+        }
+        String reason = response.lines()
+                .filter(line -> line.toUpperCase(Locale.ROOT).startsWith("REASON:"))
+                .map(line -> line.substring("REASON:".length()).trim())
+                .findFirst()
+                .orElse("No reason given.");
+        return Optional.of(new SecretGateVerdict(sawBlock, reason));
     }
 
     private String callClaude(String operation, String systemPrompt, String userPrompt) {

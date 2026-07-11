@@ -3625,6 +3625,130 @@
   border-bottom: none;
 }
 
+/* ---------- secret shield ---------- */
+
+.shield-textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 12px;
+}
+
+.shield-textarea:focus {
+  outline: none;
+  border-color: var(--cyan);
+}
+
+.shield-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.shield-verdict-banner {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+}
+
+.shield-verdict-banner.shield-bad {
+  color: var(--red);
+  background: rgba(251, 77, 106, 0.1);
+  border: 1px solid rgba(251, 77, 106, 0.25);
+}
+
+.shield-verdict-banner.shield-good {
+  color: var(--green);
+  background: rgba(52, 224, 161, 0.08);
+  border: 1px solid rgba(52, 224, 161, 0.25);
+}
+
+.shield-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shield-finding {
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.shield-finding.shield-bad {
+  border-left-color: var(--red);
+}
+
+.shield-finding.shield-warn {
+  border-left-color: var(--amber);
+}
+
+.shield-finding.shield-good {
+  border-left-color: var(--green);
+}
+
+.shield-finding-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.shield-finding-line {
+  color: var(--text-faint);
+}
+
+.shield-finding-category {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.shield-finding-gate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.shield-ai-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cyan);
+}
+
+.shield-finding-snippet {
+  display: block;
+  margin: 8px 0 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-panel-solid);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.shield-finding-reason {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
 /* ---------- team management ---------- */
 
 .team-page {

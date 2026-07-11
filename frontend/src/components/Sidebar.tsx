@@ -22,6 +22,7 @@ import {
   ScanSearch,
   Crown,
   Globe2,
+  ShieldCheck,
 } from 'lucide-react';
 import type { EngineeringHealthData } from '../types/dashboard';
 
@@ -53,6 +54,7 @@ export default function Sidebar({ health, incidentCount, riskCount }: Props) {
     { label: 'Executive Mode', icon: Crown, to: '/executive' },
     { label: 'AI Copilot', icon: Bot },
     { label: 'Analytics', icon: BarChart3, to: '/analytics' },
+    { label: 'Secret Shield', icon: ShieldCheck, to: '/secret-shield' },
     { label: 'Knowledge Base', icon: BookOpen, to: '/knowledge-base' },
     { label: 'Integrations', icon: Plug, to: '/integrations' },
     { label: 'Operator Console', icon: Server, to: '/operator' },

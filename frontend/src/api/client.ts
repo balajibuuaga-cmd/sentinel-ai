@@ -17,6 +17,7 @@ import type {
   Incident,
   IncidentRemediationStep,
   IncidentStatusUpdateRequest,
+  SecretScanResponse,
   IntegrationConnection,
   IntegrationInstallRequest,
   IntegrationProvider,
@@ -184,6 +185,11 @@ export const api = {
   architectureBrain: () => request<ArchitectureBrain>('/api/architecture/brain'),
   auditEvents: () => request<AuditEvent[]>('/api/audit-events'),
   aiUsage: () => request<AiUsageSummary>('/api/ai/usage'),
+  scanForSecrets: (content: string, filename: string) =>
+    request<SecretScanResponse>('/api/security/secret-scan', {
+      method: 'POST',
+      body: JSON.stringify({ content, filename }),
+    }),
   askCommand: (command: string, deploymentId: number | null = null) =>
     request<CommandResponse>('/api/ai/command', {
       method: 'POST',

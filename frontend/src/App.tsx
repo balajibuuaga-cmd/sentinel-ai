@@ -30,6 +30,7 @@ const RiskGlobePage = lazy(() => import('./pages/RiskGlobePage'));
 const Team = lazy(() => import('./pages/Team'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Analytics = lazy(() => import('./pages/Analytics'));
+const SecretShield = lazy(() => import('./pages/SecretShield'));
 const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
 
 function useIntegrationOAuthCallback() {
@@ -108,6 +109,7 @@ function AuthenticatedApp({ data, refresh }: { data: DashboardData; refresh: () 
             <Route path="/team" element={<Team />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/secret-shield" element={<SecretShield />} />
             <Route path="/knowledge-base" element={<KnowledgeBase />} />
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="/signup" element={<Navigate to="/" replace />} />

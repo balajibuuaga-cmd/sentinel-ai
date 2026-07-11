@@ -2,7 +2,10 @@
 set -eu
 
 # Rebuilds the backend jar and frontend bundle, ships them to the running
-# EC2 instance, and restarts the app. Run from the repo root:
+# EC2 instance, and restarts the app. The previous release is kept on the
+# server so a bad deploy can be reverted instantly. If the post-deploy health
+# check fails, this script auto-rolls back to the previous release before
+# exiting non-zero. Run from the repo root:
 #   ./scripts/deploy.sh
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -27,6 +30,20 @@ if [ ! -f "$SSH_KEY" ]; then
   exit 1
 fi
 
+health_ok() {
+  # Poll the app health endpoint until 200 or timeout. Returns 0 on healthy.
+  attempts=0
+  while [ "$attempts" -lt 30 ]; do
+    code=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/api/auth/status" || echo "000")
+    if [ "$code" = "200" ]; then
+      return 0
+    fi
+    attempts=$((attempts + 1))
+    sleep 2
+  done
+  return 1
+}
+
 echo "==> Building backend jar..."
 (cd "$REPO_ROOT" && ./mvnw -q -f backend/pom.xml -DskipTests package)
 JAR_PATH="$REPO_ROOT/backend/target/sentinel-ai-0.0.1-SNAPSHOT.jar"
@@ -39,9 +56,18 @@ echo "==> Shipping jar and frontend to $EC2_HOST..."
 scp -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "$JAR_PATH" "$EC2_USER@$EC2_HOST:/tmp/sentinel-ai-new.jar"
 scp -i "$SSH_KEY" -r "$DIST_PATH" "$EC2_USER@$EC2_HOST:/tmp/frontend-dist-new"
 
-echo "==> Swapping files in and restarting service..."
+echo "==> Swapping in new release (keeping previous for rollback)..."
 ssh -i "$SSH_KEY" "$EC2_USER@$EC2_HOST" "sudo bash -s" << 'REMOTESCRIPT'
 set -e
+# Preserve the currently-running release as .prev before overwriting.
+if [ -f /opt/sentinel-ai/app.jar ]; then
+  cp -f /opt/sentinel-ai/app.jar /opt/sentinel-ai/app.jar.prev
+fi
+if [ -d /usr/share/nginx/html ]; then
+  rm -rf /usr/share/nginx/html.prev
+  cp -a /usr/share/nginx/html /usr/share/nginx/html.prev
+fi
+
 mv /tmp/sentinel-ai-new.jar /opt/sentinel-ai/app.jar
 rm -rf /usr/share/nginx/html
 mv /tmp/frontend-dist-new /usr/share/nginx/html
@@ -51,22 +77,30 @@ systemctl restart sentinel-ai
 REMOTESCRIPT
 
 echo "==> Waiting for the app to come back up..."
-ATTEMPTS=0
-MAX_ATTEMPTS=30
-STATUS_CODE=0
-while [ "$ATTEMPTS" -lt "$MAX_ATTEMPTS" ]; do
-  STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/api/auth/status" || echo "000")
-  if [ "$STATUS_CODE" = "200" ]; then
-    break
-  fi
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 2
-done
-
-if [ "$STATUS_CODE" != "200" ]; then
-  echo "Deployment finished but /api/auth/status did not come up after ${MAX_ATTEMPTS}x2s (last status: $STATUS_CODE). Check the server logs:" >&2
-  echo "  ssh -i $SSH_KEY $EC2_USER@$EC2_HOST 'sudo journalctl -u sentinel-ai -n 50'" >&2
-  exit 1
+if health_ok; then
+  echo "==> Deployed successfully. $APP_URL is live."
+  exit 0
 fi
 
-echo "==> Deployed successfully. $APP_URL is live."
+echo "Health check failed after deploy. Rolling back to the previous release..." >&2
+ssh -i "$SSH_KEY" "$EC2_USER@$EC2_HOST" "sudo bash -s" << 'ROLLBACKSCRIPT'
+set -e
+if [ -f /opt/sentinel-ai/app.jar.prev ]; then
+  mv -f /opt/sentinel-ai/app.jar.prev /opt/sentinel-ai/app.jar
+  chown sentinel:sentinel /opt/sentinel-ai/app.jar
+fi
+if [ -d /usr/share/nginx/html.prev ]; then
+  rm -rf /usr/share/nginx/html
+  mv /usr/share/nginx/html.prev /usr/share/nginx/html
+  chown -R nginx:nginx /usr/share/nginx/html
+fi
+systemctl restart sentinel-ai
+ROLLBACKSCRIPT
+
+if health_ok; then
+  echo "Rolled back to the previous release. $APP_URL is healthy on the old version." >&2
+else
+  echo "Rollback attempted but health check still failing. Inspect the server:" >&2
+  echo "  ssh -i $SSH_KEY $EC2_USER@$EC2_HOST 'sudo journalctl -u sentinel-ai -n 80'" >&2
+fi
+exit 1

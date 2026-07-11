@@ -20,7 +20,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         properties = {
                 "spring.jpa.hibernate.ddl-auto=validate",
                 "sentinel.jwt.secret=test-secret-with-enough-length",
-                "sentinel.github.webhook-secret=test-webhook-secret"
+                "sentinel.github.webhook-secret=test-webhook-secret",
+                "sentinel.security.rate-limit.auth-requests-per-minute=10000"
         }
 )
 @AutoConfigureMockMvc

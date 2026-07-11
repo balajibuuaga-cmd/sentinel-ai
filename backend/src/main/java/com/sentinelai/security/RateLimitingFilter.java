@@ -8,9 +8,20 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Set;
 
 @Component
 public class RateLimitingFilter extends OncePerRequestFilter {
+
+    // Abusable auth endpoints get a separate, tighter per-IP budget: brute-force
+    // login, credential stuffing, and signup/reset spam all target these.
+    private static final Set<String> SENSITIVE_PATHS = Set.of(
+            "/api/auth/login",
+            "/api/auth/signup",
+            "/api/auth/mfa/verify",
+            "/api/auth/password-reset/request",
+            "/api/auth/password-reset/confirm"
+    );
 
     private final RateLimitService rateLimitService;
 
@@ -30,7 +41,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         }
 
         String key = clientKey(request);
-        RateLimitDecision decision = rateLimitService.check(key);
+        boolean sensitive = "POST".equalsIgnoreCase(request.getMethod())
+                && SENSITIVE_PATHS.contains(request.getRequestURI());
+        RateLimitDecision decision = sensitive ? rateLimitService.checkSensitive(key) : rateLimitService.check(key);
         response.setHeader("X-RateLimit-Limit", String.valueOf(decision.limit()));
         response.setHeader("X-RateLimit-Remaining", String.valueOf(decision.remaining()));
         response.setHeader("X-RateLimit-Backend", decision.backend());

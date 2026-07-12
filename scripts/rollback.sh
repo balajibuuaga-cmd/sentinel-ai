@@ -7,7 +7,7 @@ set -eu
 # but turns out to be bad in production. Run from the repo root:
 #   ./scripts/rollback.sh
 
-EC2_HOST="${SENTINEL_EC2_HOST:-3.90.3.12}"
+EC2_HOST="${SENTINEL_EC2_HOST:-3.216.127.47}"
 EC2_USER="${SENTINEL_EC2_USER:-ec2-user}"
 SSH_KEY="${SENTINEL_EC2_SSH_KEY:-$HOME/.ssh/sentinel-ai-deploy-key}"
 APP_URL="${SENTINEL_APP_URL:-https://getsentinelai.dev}"

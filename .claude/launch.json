@@ -10,8 +10,8 @@
     },
     {
       "name": "backend",
-      "runtimeExecutable": "/Users/balajiburaga/Downloads/sentinel-ai/mvnw",
-      "runtimeArgs": ["-f", "/Users/balajiburaga/Downloads/sentinel-ai/backend/pom.xml", "spring-boot:run"],
+      "runtimeExecutable": "/opt/homebrew/opt/openjdk/bin/java",
+      "runtimeArgs": ["-jar", "/Users/balajiburaga/Downloads/sentinel-ai/backend/target/sentinel-ai-0.0.1-SNAPSHOT.jar"],
       "port": 8090
     }
   ]

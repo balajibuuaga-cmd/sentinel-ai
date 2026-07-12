@@ -115,8 +115,7 @@ public class TeamService {
     }
 
     private User findInTenant(Long memberId) {
-        return userRepository.findById(memberId)
-                .filter(user -> user.getTenantId().equals(tenantContext.tenantId()))
+        return userRepository.findByIdAndTenantId(memberId, tenantContext.tenantId())
                 .orElseThrow(() -> new IllegalArgumentException("Team member not found."));
     }
 

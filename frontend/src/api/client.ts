@@ -13,6 +13,7 @@ import type {
   DeploymentMemory,
   EngineeringDna,
   EngineeringPlaybook,
+  ErrorEventView,
   ExecutiveBriefing,
   Incident,
   IncidentRemediationStep,
@@ -177,6 +178,7 @@ export async function confirmPasswordReset(resetToken: string, newPassword: stri
 
 export const api = {
   operatorConsole: () => request<OperatorConsole>('/api/operator/console'),
+  operatorErrors: () => request<ErrorEventView[]>('/api/operator/errors'),
   executiveBriefing: () => request<ExecutiveBriefing>('/api/briefing/executive'),
   engineeringDna: () => request<EngineeringDna>('/api/engineering-dna'),
   deployments: () => request<Deployment[]>('/api/deployments'),

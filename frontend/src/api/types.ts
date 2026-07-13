@@ -73,6 +73,15 @@ export interface SecretScanResponse {
   findings: SecretFinding[];
 }
 
+export interface ErrorEventView {
+  errorType: string;
+  message: string | null;
+  path: string | null;
+  httpMethod: string | null;
+  requestId: string | null;
+  occurredAt: string;
+}
+
 export interface AuthModeStatus {
   mode: string;
   demoLoginEnabled: boolean;

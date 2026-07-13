@@ -1,5 +1,6 @@
 package com.sentinelai.observability;
 
+import com.sentinelai.service.ErrorTrackingService;
 import com.sentinelai.service.integrations.ProviderSyncException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,12 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalApiExceptionHandler {
+
+    private final ErrorTrackingService errorTrackingService;
+
+    public GlobalApiExceptionHandler(ErrorTrackingService errorTrackingService) {
+        this.errorTrackingService = errorTrackingService;
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> validation(MethodArgumentNotValidException ex) {
@@ -68,6 +75,8 @@ public class GlobalApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> unexpected(Exception ex, HttpServletRequest request) {
+        // Only unexpected 500s are tracked; 4xx above are expected client errors.
+        errorTrackingService.record(ex, request.getRequestURI(), request.getMethod());
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Sentinel could not complete the request.", Map.of(
                 "path", request.getRequestURI()
         ));

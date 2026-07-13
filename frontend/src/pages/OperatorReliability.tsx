@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Building2, RotateCcw, Webhook, CheckCircle2, Circle } from 'lucide-react';
+import { Building2, RotateCcw, Webhook, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import { api } from '../api/client';
 import type {
   BackgroundJob,
   BackgroundJobStatus,
+  ErrorEventView,
   OrganizationProfile,
   WebhookDelivery,
   WebhookDeliveryStatus,
@@ -37,17 +38,19 @@ export default function OperatorReliability() {
   const [org, setOrg] = useState<OrganizationProfile | null>(null);
   const [jobs, setJobs] = useState<BackgroundJob[]>([]);
   const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
+  const [errors, setErrors] = useState<ErrorEventView[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   function load(cancelled?: { current: boolean }) {
-    Promise.all([api.organizationProfile(), api.backgroundJobs(), api.webhookDeliveries()])
-      .then(([profile, jobList, deliveryList]) => {
+    Promise.all([api.organizationProfile(), api.backgroundJobs(), api.webhookDeliveries(), api.operatorErrors()])
+      .then(([profile, jobList, deliveryList, errorList]) => {
         if (cancelled?.current) return;
         setOrg(profile);
         setJobs(jobList);
         setDeliveries(deliveryList);
+        setErrors(errorList);
         setLoading(false);
       })
       .catch((err) => {
@@ -214,6 +217,34 @@ export default function OperatorReliability() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="panel operator-errors">
+        <div className="chart-card-header">
+          <AlertTriangle size={15} /> Recent Server Errors
+        </div>
+        {errors.length === 0 ? (
+          <div className="chart-empty">No unhandled server errors recorded. 🎉</div>
+        ) : (
+          <div className="operator-list">
+            {errors.map((err, index) => (
+              <div key={`${err.requestId}-${index}`} className="operator-row">
+                <span className="rec-badge tone-bad">500</span>
+                <div className="operator-row-body">
+                  <div className="operator-row-title">
+                    {err.httpMethod ? `${err.httpMethod} ` : ''}
+                    {err.path ?? '—'} &middot; {err.errorType.replace(/^.*\./, '')}
+                  </div>
+                  <div className="operator-row-meta">
+                    {formatDateTime(err.occurredAt)}
+                    {err.message ? ` · ${err.message}` : ''}
+                    {err.requestId ? ` · req ${err.requestId}` : ''}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

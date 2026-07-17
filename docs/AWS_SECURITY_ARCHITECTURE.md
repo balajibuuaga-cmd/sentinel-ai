@@ -76,6 +76,31 @@ Detection and audit:
 - Provider sync failures are categorized as auth, scope, rate limit, provider outage, bad config, or unknown failures.
 - Micrometer metrics count deployment reviews, webhooks, approval decisions, and provider sync outcomes.
 
+## Secrets Loading (implemented)
+
+Application secrets are loaded from AWS Secrets Manager at boot rather than sitting
+in plaintext on the host. `SecretsManagerEnvironmentPostProcessor` runs before the
+Spring context starts and, when `SENTINEL_SECRETS_ID` is set, fetches a flat JSON
+secret whose keys are the existing environment-variable names
+(`SENTINEL_JWT_SECRET`, `SPRING_DATASOURCE_PASSWORD`, `SENTINEL_GITHUB_WEBHOOK_SECRET`,
+`SENTINEL_INTEGRATION_TOKEN_ENCRYPTION_KEY`, Cognito/GitHub/Jira client secrets, …)
+and layers them in as the highest-precedence property source. Existing
+`${SENTINEL_JWT_SECRET:...}` placeholders resolve straight from it, so no property
+changes were required.
+
+Key properties of the mechanism:
+
+- **Opt-in / offline-safe.** With `SENTINEL_SECRETS_ID` unset (local dev, CI, tests)
+  the post-processor is a complete no-op — nothing calls AWS.
+- **Fail-fast in production.** When the flag IS set but the secret can't be fetched
+  or parsed, startup aborts instead of silently falling back to the committed
+  `local-dev-*` defaults.
+- **Least privilege.** The EC2 instance role is granted only
+  `secretsmanager:GetSecretValue` on the single secret ARN.
+- Provisioning helper: `scripts/setup-secrets.sh` creates/updates the secret from a
+  local (uncommitted) `KEY=VALUE` file and prints the required IAM policy and
+  systemd `EnvironmentFile` changes.
+
 ## AWS-Ready Runtime Mapping
 
 | Local Capability | AWS Production Target |

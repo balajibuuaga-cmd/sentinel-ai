@@ -13,6 +13,8 @@ EC2_HOST="${SENTINEL_EC2_HOST:-3.216.127.47}"
 EC2_USER="${SENTINEL_EC2_USER:-ec2-user}"
 SSH_KEY="${SENTINEL_EC2_SSH_KEY:-$HOME/.ssh/sentinel-ai-deploy-key}"
 APP_URL="${SENTINEL_APP_URL:-https://getsentinelai.dev}"
+SECURITY_GROUP="${SENTINEL_EC2_SECURITY_GROUP:-sg-08d39a17aecdc7858}"
+AWS_REGION="${SENTINEL_AWS_REGION:-us-east-1}"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -30,6 +32,60 @@ if [ ! -f "$SSH_KEY" ]; then
   exit 1
 fi
 
+ensure_ssh_access() {
+  # SSH is locked to a single /32 so the box is not exposed to the internet.
+  # That means a change of network (coffee shop, hotspot, new ISP lease) makes
+  # deploys hang on a dropped connection rather than fail fast. Whitelist the
+  # current public IP if it is not already allowed, and drop any other /32 so
+  # stale addresses do not accumulate.
+  #
+  # Skip with SENTINEL_SKIP_SG_CHECK=1, or when the AWS CLI is unavailable.
+  if [ "${SENTINEL_SKIP_SG_CHECK:-0}" = "1" ]; then
+    return 0
+  fi
+  if ! command -v aws >/dev/null 2>&1; then
+    echo "==> aws CLI not found; skipping SSH whitelist check."
+    return 0
+  fi
+
+  my_ip=$(curl -s --max-time 10 https://checkip.amazonaws.com | tr -d '[:space:]')
+  if [ -z "$my_ip" ]; then
+    echo "==> Could not determine public IP; skipping SSH whitelist check."
+    return 0
+  fi
+
+  # describe-security-group-rules returns one flat row per rule, so the port
+  # filter can be done in awk. A JMESPath [?FromPort==`22`] filter is avoided
+  # deliberately: the backticks JMESPath needs for number literals do not
+  # survive shell quoting reliably and silently yield an empty result.
+  rules=$(aws ec2 describe-security-group-rules --region "$AWS_REGION" \
+    --filters "Name=group-id,Values=$SECURITY_GROUP" \
+    --query 'SecurityGroupRules[].[FromPort,CidrIpv4,SecurityGroupRuleId,IsEgress]' \
+    --output text 2>/dev/null | awk '$1==22 && $4=="False" {print $2, $3}')
+
+  if echo "$rules" | awk '{print $1}' | grep -qx "$my_ip/32"; then
+    echo "==> SSH already allows $my_ip."
+    return 0
+  fi
+
+  echo "==> Whitelisting $my_ip for SSH..."
+  aws ec2 authorize-security-group-ingress --region "$AWS_REGION" \
+    --group-id "$SECURITY_GROUP" \
+    --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=$my_ip/32,Description=\"deploy access\"}]" \
+    >/dev/null
+
+  # Drop the previous addresses now that the current one is in place, so stale
+  # /32s from old networks do not accumulate as standing SSH exposure.
+  echo "$rules" | while read -r cidr rule_id; do
+    if [ -n "$rule_id" ] && [ "$cidr" != "$my_ip/32" ]; then
+      echo "==> Revoking stale SSH rule $cidr."
+      aws ec2 revoke-security-group-ingress --region "$AWS_REGION" \
+        --group-id "$SECURITY_GROUP" \
+        --security-group-rule-ids "$rule_id" >/dev/null 2>&1 || true
+    fi
+  done
+}
+
 health_ok() {
   # Poll the app health endpoint until 200 or timeout. Returns 0 on healthy.
   attempts=0
@@ -43,6 +99,8 @@ health_ok() {
   done
   return 1
 }
+
+ensure_ssh_access
 
 echo "==> Building backend jar..."
 (cd "$REPO_ROOT" && ./mvnw -q -f backend/pom.xml -DskipTests package)

@@ -7,6 +7,8 @@ import com.sentinelai.repository.UserRepository;
 import com.sentinelai.service.EmailService;
 import com.sentinelai.service.MfaChallengeStore;
 import com.sentinelai.service.TotpService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,8 @@ import java.util.UUID;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final Duration LOCKOUT_DURATION = Duration.ofMinutes(15);
@@ -161,13 +165,21 @@ public class AuthService {
         audit(user, "PASSWORD_RESET_REQUESTED", "Password reset link requested.");
 
         String resetLink = resetLinkBaseUrl + "/reset-password?token=" + rawToken;
-        emailService.send(
-                user.getEmail(),
-                "Reset your Sentinel AI password",
-                "We received a request to reset your Sentinel AI password.\n\n"
-                        + "Reset it here (expires in 30 minutes): " + resetLink + "\n\n"
-                        + "If you didn't request this, you can safely ignore this email."
-        );
+        try {
+            emailService.send(
+                    user.getEmail(),
+                    "Reset your Sentinel AI password",
+                    "We received a request to reset your Sentinel AI password.\n\n"
+                            + "Reset it here (expires in 30 minutes): " + resetLink + "\n\n"
+                            + "If you didn't request this, you can safely ignore this email."
+            );
+        } catch (RuntimeException ex) {
+            // The token is already persisted and audited above. Surfacing a
+            // delivery failure here would both break the uniform response that
+            // hides whether an address is registered, and leave the caller
+            // unable to tell that their reset token was in fact issued.
+            log.warn("Password reset email could not be delivered: {}", ex.toString());
+        }
     }
 
     public void resetPassword(PasswordResetConfirmRequest request) {

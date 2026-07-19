@@ -48,7 +48,15 @@ public class SesEmailService implements EmailService {
                             .build())
                     .build());
         } catch (SesV2Exception ex) {
-            log.warn("Failed to send email to {}: {}", to, ex.getMessage());
+            // Expected in the SES sandbox: sending to an unverified recipient is
+            // rejected. Callers (password reset, team invites) must not fail.
+            log.warn("SES rejected email to {}: {}", to, ex.getMessage());
+        } catch (RuntimeException ex) {
+            // Transport-level failures (credentials, network, throttling) are
+            // equally non-fatal. Email delivery here is best-effort by design —
+            // password reset deliberately returns the same response whether or
+            // not the address exists, so a send failure must never change it.
+            log.warn("Failed to send email to {}: {}", to, ex.toString());
         }
     }
 }

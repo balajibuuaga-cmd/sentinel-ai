@@ -24,10 +24,16 @@ import {
   Globe2,
   ShieldCheck,
 } from 'lucide-react';
+import { currentSession } from '../api/client';
 import type { EngineeringHealthData } from '../types/dashboard';
 
 const RADIUS = 42;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+// Roles allowed to reach role-restricted destinations. These mirror the server's
+// rules in SecurityConfig — the backend remains the authority; hiding the link
+// only avoids offering a user a page that can only answer 403.
+const OPERATOR_ROLES = ['ADMIN', 'RELEASE_MANAGER'];
 
 interface Props {
   health: EngineeringHealthData;
@@ -37,6 +43,7 @@ interface Props {
 
 export default function Sidebar({ health, incidentCount, riskCount }: Props) {
   const offset = CIRCUMFERENCE - (health.score / 100) * CIRCUMFERENCE;
+  const role = currentSession()?.role ?? '';
 
   const navItems = [
     { label: 'Command Center', icon: LayoutDashboard, to: '/', end: true },
@@ -57,10 +64,10 @@ export default function Sidebar({ health, incidentCount, riskCount }: Props) {
     { label: 'Secret Shield', icon: ShieldCheck, to: '/secret-shield' },
     { label: 'Knowledge Base', icon: BookOpen, to: '/knowledge-base' },
     { label: 'Integrations', icon: Plug, to: '/integrations' },
-    { label: 'Operator Console', icon: Server, to: '/operator' },
+    { label: 'Operator Console', icon: Server, to: '/operator', roles: OPERATOR_ROLES },
     { label: 'Team', icon: Users, to: '/team' },
     { label: 'Settings', icon: Settings, to: '/settings' },
-  ];
+  ].filter((item) => !item.roles || item.roles.includes(role));
 
   return (
     <aside className="sidebar">

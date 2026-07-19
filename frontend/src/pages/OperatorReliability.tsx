@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Building2, RotateCcw, Webhook, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
-import { api } from '../api/client';
+import { ApiError, api } from '../api/client';
 import type {
   BackgroundJob,
   BackgroundJobStatus,
@@ -41,6 +41,7 @@ export default function OperatorReliability() {
   const [errors, setErrors] = useState<ErrorEventView[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
   const [loading, setLoading] = useState(true);
 
   function load(cancelled?: { current: boolean }) {
@@ -55,7 +56,13 @@ export default function OperatorReliability() {
       })
       .catch((err) => {
         if (cancelled?.current) return;
-        setError(err instanceof Error ? err.message : 'Failed to load operator reliability data');
+        // This page is ADMIN/RELEASE_MANAGER only. Reaching it by URL as another
+        // role should explain that, not surface a raw "failed with 403".
+        if (err instanceof ApiError && err.status === 403) {
+          setForbidden(true);
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to load operator reliability data');
+        }
         setLoading(false);
       });
   }
@@ -96,6 +103,15 @@ export default function OperatorReliability() {
 
   if (loading) {
     return <div className="page-empty-state">Loading operator reliability data...</div>;
+  }
+
+  if (forbidden) {
+    return (
+      <div className="page-empty-state">
+        The Operator Console is available to administrators and release managers. Ask an
+        administrator if you need access.
+      </div>
+    );
   }
 
   return (

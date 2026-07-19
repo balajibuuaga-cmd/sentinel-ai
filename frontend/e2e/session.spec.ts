@@ -30,14 +30,26 @@ async function signIn(page: Page, account: { email: string; password: string }) 
   await page.goto('/login');
   await page.getByLabel('Email').fill(account.email);
   await page.getByLabel('Password').fill(account.password);
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await expect(page.getByRole('link', { name: 'Command Center' })).toBeVisible({ timeout: 20_000 });
+
+  // Wait on the login response itself rather than racing the first paint of the
+  // shell: the dashboard fans out several requests after authenticating, and
+  // asserting only on rendered nav made this helper occasionally time out.
+  await Promise.all([
+    page.waitForResponse(
+      (response) => response.url().includes('/api/auth/login') && response.status() === 200,
+      { timeout: 30_000 },
+    ),
+    page.getByRole('button', { name: 'Sign In' }).click(),
+  ]);
+
+  await expect(page.getByRole('link', { name: 'Command Center' })).toBeVisible({ timeout: 30_000 });
 }
 
+// NOTE: no blanket addInitScript that clears localStorage here. Playwright already
+// gives each test a fresh context with empty storage, and an init script re-runs on
+// EVERY navigation — so clearing there would wipe the session again the moment a
+// test navigates after signing in, producing a spurious redirect to login.
 test.describe('session lifecycle', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => window.localStorage.clear());
-  });
 
   // Regression: the backend answered unauthenticated requests with 403, which the
   // console did not treat as "session gone" (it only handled 401). The result was
@@ -81,6 +93,30 @@ test.describe('session lifecycle', () => {
     // Going back to a protected route must not restore the old session.
     await page.goto('/');
     await expect(page).toHaveURL(/\/login$/, { timeout: 20_000 });
+  });
+
+  // The Operator Console is ADMIN/RELEASE_MANAGER only. Offering the link to a
+  // VIEWER led straight to a raw "failed with 403" page, so the nav is filtered
+  // by role and the page itself explains the restriction when reached by URL.
+  test('a VIEWER is not offered the Operator Console in the nav', async ({ page }) => {
+    await signIn(page, VIEWER);
+
+    await expect(page.getByRole('link', { name: /operator console/i })).toHaveCount(0);
+  });
+
+  test('an ADMIN is still offered the Operator Console', async ({ page }) => {
+    await signIn(page, ADMIN);
+
+    await expect(page.getByRole('link', { name: /operator console/i })).toHaveCount(1);
+  });
+
+  test('a VIEWER reaching /operator by URL sees an explanation, not a raw 403', async ({ page }) => {
+    await signIn(page, VIEWER);
+    await page.goto('/operator');
+
+    await expect(page.getByText(/available to administrators and release managers/i))
+      .toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/failed with 403/i)).toHaveCount(0);
   });
 
   test('a signed-in admin can navigate to another protected route', async ({ page }) => {

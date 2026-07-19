@@ -27,11 +27,16 @@ public class SecurityConfig {
             JwtAuthenticationFilter jwtAuthenticationFilter,
             RateLimitingFilter rateLimitingFilter,
             SecurityHeadersFilter securityHeadersFilter,
-            ApiModeFilter apiModeFilter
+            ApiModeFilter apiModeFilter,
+            RestAuthenticationEntryPoint authenticationEntryPoint
     ) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Anonymous requests must answer 401, not the default 403, so
+                // clients can distinguish an expired session from a role that
+                // simply lacks access to the endpoint.
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index.html", "/styles.css", "/app.js", "/favicon.ico", "/error").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()

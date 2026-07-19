@@ -65,7 +65,15 @@ export function useDashboard() {
 
     try {
       const [operator, briefing, dna, deployments, incidents, brain, auditEvents] = await Promise.all([
-        api.operatorConsole(),
+        // The operator console is ADMIN/RELEASE_MANAGER only. A VIEWER gets 403
+        // here, which must degrade that one panel rather than fail the whole
+        // dashboard — any other failure still propagates.
+        api.operatorConsole().catch((err) => {
+          if (err instanceof ApiError && err.status === 403) {
+            return null;
+          }
+          throw err;
+        }),
         api.executiveBriefing(),
         api.engineeringDna(),
         api.deployments(),
@@ -93,6 +101,8 @@ export function useDashboard() {
       setNeedsLogin(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
+        // 401 means the stored session is missing or expired: drop it and send
+        // the user to login rather than showing a "backend unreachable" error.
         clearSession();
         setNeedsLogin(true);
       } else {

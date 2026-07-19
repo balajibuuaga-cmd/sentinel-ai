@@ -376,14 +376,20 @@ export function buildRiskProjection(
   return { points, sampleSize: n, rSquared, trend };
 }
 
-export function buildBusinessImpact(operator: OperatorConsole, deployments: Deployment[], incidents: Incident[]) {
+// `operator` is null for roles without access to the operator console (VIEWER),
+// so the dashboard degrades to the panels that role can see rather than failing.
+export function buildBusinessImpact(
+  operator: OperatorConsole | null,
+  deployments: Deployment[],
+  incidents: Incident[],
+) {
   const blockedToday = deployments.filter((d) => d.status === 'BLOCKED').length;
   const downtimeRisk = incidents.length ? worstSeverity(incidents).replace('SEV', 'Sev ') : 'Low';
 
   return {
     blockedToday,
-    failedWebhooks: operator.failedWebhookDeliveryCount,
-    attentionIntegrations: operator.attentionIntegrationCount,
+    failedWebhooks: operator?.failedWebhookDeliveryCount ?? 0,
+    attentionIntegrations: operator?.attentionIntegrationCount ?? 0,
     downtimeRisk,
   };
 }

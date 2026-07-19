@@ -218,6 +218,9 @@ mutates production tables automatically.
 
 ### Demo logins (local only)
 
+The `V5` migration seeds four accounts so a fresh local database is immediately usable, one per role
+plus a second tenant for verifying isolation:
+
 | Role | Email | Password |
 |---|---|---|
 | Admin | `admin@sentinel.ai` | `sentinel-admin` |
@@ -225,8 +228,9 @@ mutates production tables automatically.
 | Viewer | `viewer@sentinel.ai` | `sentinel-viewer` |
 | Second tenant | `acme-release@sentinel.ai` | `sentinel-acme` |
 
-> ⚠️ These are seeded development accounts. Treat them as local-only and disable or rotate them on
-> any internet-facing deployment.
+> **These credentials work only against a locally-seeded database.** They have been rotated on the
+> hosted deployment and will not grant access there. Rotate or remove them on any internet-facing
+> environment — seed passwords published in a public repository are not credentials.
 
 ---
 

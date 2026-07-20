@@ -22,6 +22,17 @@ const syncTone: Record<IntegrationSyncEvent['status'], 'good' | 'warn' | 'bad'> 
   FAILED: 'bad',
 };
 
+// A connection installed without provider credentials never performed an OAuth
+// exchange and holds no token, so it cannot reach GitHub or Jira. The backend
+// says so in statusDetail; surface it as a badge so a connected-looking card is
+// never mistaken for a live one.
+function isDemoConnection(connection: IntegrationConnection): boolean {
+  return (
+    connection.status === 'CONNECTED' &&
+    connection.statusDetail.toLowerCase().includes('demo connection')
+  );
+}
+
 function formatDateTime(iso: string | null) {
   if (!iso) return 'Never';
   const date = new Date(iso);
@@ -127,6 +138,11 @@ export default function Integrations() {
                   <div className="integration-card-account">{connection.externalAccount ?? 'Not connected'}</div>
                 </div>
                 <span className={`rec-badge tone-${tone === 'dim' ? 'warn' : tone}`}>{connection.status.replace('_', ' ')}</span>
+                {isDemoConnection(connection) ? (
+                  <span className="rec-badge tone-warn" title="No OAuth exchange was performed; this connection cannot reach the provider.">
+                    DEMO
+                  </span>
+                ) : null}
               </div>
 
               <div className="integration-card-stats">

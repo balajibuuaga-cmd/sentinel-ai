@@ -138,3 +138,29 @@ test.describe('chrome controls are wired', () => {
     await expect(page.locator('.nav-item-disabled')).toHaveCount(0);
   });
 });
+
+// Installing a provider without credentials performs no OAuth exchange and stores
+// no token, so the integration cannot reach GitHub or Jira. It used to report
+// CONNECTED with a healthy successful sync anyway.
+test.describe('integrations state honesty', () => {
+  test('a demo install is labelled, not presented as a live connection', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/integrations');
+
+    const connect = page.getByRole('button', { name: /^Connect$/ }).first();
+    await expect(connect).toBeVisible({ timeout: 20_000 });
+    await Promise.all([
+      page.waitForResponse(
+        (response) => response.url().includes('/install') && response.status() < 400,
+        { timeout: 30_000 },
+      ),
+      connect.click(),
+    ]);
+
+    const card = page.locator('.integration-card').filter({ hasText: 'DEMO' }).first();
+    await expect(card).toBeVisible({ timeout: 20_000 });
+    await expect(card).toContainText(/no OAuth exchange performed/i);
+    // The old copy asserted an installation that never happened.
+    await expect(page.getByText('Initial OAuth installation')).toHaveCount(0);
+  });
+});

@@ -88,10 +88,19 @@ public class IntegrationConnectionService {
                 ? defaultExternalAccount(provider)
                 : request.externalAccount();
         String tokenSecretRef = connection.getTokenSecretRef();
-        String detail = "Initial OAuth installation and bootstrap sync completed.";
-        int recordsInspected = 24;
-        int latencyMs = 420;
-        if (providerOAuthClient.shouldExchange(provider, request)) {
+        // Without provider credentials configured there is no OAuth exchange and no
+        // token, so this connection cannot reach the provider. Say that plainly:
+        // claiming a completed installation (and inventing record/latency figures)
+        // presents an unconnected integration as a working one.
+        String detail = "Demo connection: no OAuth exchange performed and no provider token stored. "
+                + "Configure provider credentials and enable real exchange to connect a live account.";
+        int recordsInspected = 0;
+        int latencyMs = 0;
+        // Derived from whether the exchange actually ran, not from tokenSecretRef:
+        // seeded connections carry a placeholder ref that only looks like a
+        // stored token, so that field cannot distinguish live from demo.
+        boolean live = providerOAuthClient.shouldExchange(provider, request);
+        if (live) {
             IntegrationOAuthResult exchange = providerOAuthClient.exchange(provider, request, externalAccount);
             externalAccount = exchange.externalAccount();
             tokenSecretRef = tokenVault.store(tenantContext.tenantId(), provider, exchange.accessToken(), exchange.refreshToken());
@@ -101,8 +110,23 @@ public class IntegrationConnectionService {
         }
         connection.connect(externalAccount, tokenSecretRef, detail);
         IntegrationConnection saved = repository.save(connection);
-        recordSync(saved, IntegrationSyncStatus.SUCCESS, recordsInspected, latencyMs, 100, detail);
-        audit("INTEGRATION_CONNECTED", provider.name(), "Connected " + provider + " to " + externalAccount + ".");
+        // A demo install inspected nothing, so recording SUCCESS with a perfect
+        // health score would put a green, healthy-looking row in the sync history
+        // for a connection that never reached the provider.
+        recordSync(
+                saved,
+                live ? IntegrationSyncStatus.SUCCESS : IntegrationSyncStatus.DEGRADED,
+                recordsInspected,
+                latencyMs,
+                live ? 100 : 0,
+                detail);
+        audit(
+                "INTEGRATION_CONNECTED",
+                provider.name(),
+                live
+                        ? "Connected " + provider + " to " + externalAccount + "."
+                        : "Registered demo " + provider + " connection for " + externalAccount
+                                + " (no OAuth exchange).");
         return saved;
     }
 

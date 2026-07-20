@@ -10,6 +10,7 @@ import {
   buildRiskHeatmap,
   buildRiskTrend,
   buildServiceGraph,
+  buildUnifiedRisks,
 } from '../api/transform';
 import type {
   ActivityItemData,
@@ -93,7 +94,9 @@ export function useDashboard() {
         engineeringHealth: buildEngineeringHealth(dna),
         activityFeed: buildActivityFeed(auditEvents),
         incidentCount: incidents.length,
-        riskCount: brain.riskCount,
+        // Same merge the Risks page renders, so the sidebar badge and that page
+        // can never show different totals.
+        riskCount: buildUnifiedRisks(brain, deployments).length,
         deployments,
         incidents,
       });

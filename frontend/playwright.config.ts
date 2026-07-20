@@ -24,7 +24,18 @@ export default defineConfig({
   webServer: [
     {
       // Requires the jar to be built first: ./mvnw -f backend/pom.xml -DskipTests package
-      command: 'java -jar ../backend/target/sentinel-ai-0.0.1-SNAPSHOT.jar',
+      //
+      // Rate limits are raised for the whole suite. Every signed-in test loads the
+      // dashboard, which fans out seven API calls and then polls, so a full run
+      // generates far more traffic per minute than the 120/min general bucket and
+      // 15/min auth bucket allow. Left at their defaults, tests failed with
+      // "shell never rendered" — throttling of the test's own request volume,
+      // not a defect. The limiter keeps its dedicated coverage in
+      // AuthRateLimitTests, where it is asserted deliberately.
+      command:
+        'java -jar ../backend/target/sentinel-ai-0.0.1-SNAPSHOT.jar ' +
+        '--sentinel.security.rate-limit.auth-requests-per-minute=10000 ' +
+        '--sentinel.security.rate-limit.requests-per-minute=100000',
       url: 'http://localhost:8090/api/auth/status',
       reuseExistingServer: false,
       timeout: 120_000,

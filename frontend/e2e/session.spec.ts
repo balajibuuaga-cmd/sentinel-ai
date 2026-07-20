@@ -112,10 +112,19 @@ test.describe('session lifecycle', () => {
 
   test('a VIEWER reaching /operator by URL sees an explanation, not a raw 403', async ({ page }) => {
     await signIn(page, VIEWER);
-    await page.goto('/operator');
+
+    // Wait for the server to actually refuse before asserting on what rendered,
+    // rather than racing the page's own request under full-suite load.
+    await Promise.all([
+      page.waitForResponse(
+        (response) => response.url().includes('/api/operator/') && response.status() === 403,
+        { timeout: 30_000 },
+      ),
+      page.goto('/operator'),
+    ]);
 
     await expect(page.getByText(/available to administrators and release managers/i))
-      .toBeVisible({ timeout: 20_000 });
+      .toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/failed with 403/i)).toHaveCount(0);
   });
 

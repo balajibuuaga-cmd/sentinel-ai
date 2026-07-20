@@ -7,6 +7,7 @@ import type {
   ExecutiveBriefing,
   Incident,
   OperatorConsole,
+  RiskLevel,
 } from './types';
 import type { ServiceEdge, ServiceNode, ServiceStatus } from '../types/dashboard';
 
@@ -193,6 +194,62 @@ function severityToStatus(severity: ArchitectureSeverityLabel | undefined): Serv
   if (!severity) return 'healthy';
   if (severity === 'HIGH' || severity === 'CRITICAL') return 'high-risk';
   return 'warning';
+}
+
+// Architecture risks and deployment risk assessments come from different parts of
+// the engine but answer the same user question: what needs attention? The Risks
+// page and the sidebar badge both derive from this one merge so their counts can
+// never disagree.
+export interface UnifiedRisk {
+  key: string;
+  severity: RiskLevel;
+  source: 'ARCHITECTURE' | 'DEPLOYMENT';
+  title: string;
+  subject: string;
+  explanation: string;
+  recommendation: string;
+  link?: string;
+}
+
+const RISK_SEVERITY_ORDER: RiskLevel[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+
+export function riskSeverityRank(level: RiskLevel): number {
+  return RISK_SEVERITY_ORDER.indexOf(level);
+}
+
+export function buildUnifiedRisks(brain: ArchitectureBrain, deployments: Deployment[]): UnifiedRisk[] {
+  const architecture: UnifiedRisk[] = brain.risks.map((risk) => ({
+    key: `arch-${risk.id}`,
+    severity: risk.severity,
+    source: 'ARCHITECTURE',
+    title: humanize(risk.riskType),
+    subject: risk.serviceName,
+    explanation: risk.explanation,
+    recommendation: risk.recommendation,
+    link: '/architecture',
+  }));
+
+  const deployment: UnifiedRisk[] = deployments.flatMap((item) => {
+    const assessment = item.riskAssessment;
+    // LOW-risk releases are noise on a page whose job is prioritisation.
+    if (!assessment || assessment.level === 'LOW') return [];
+    return [
+      {
+        key: `deploy-${item.id}`,
+        severity: assessment.level,
+        source: 'DEPLOYMENT' as const,
+        title: `Risk score ${assessment.score}`,
+        subject: item.serviceName,
+        explanation: assessment.aiExplanation,
+        recommendation: assessment.recommendation,
+        link: '/simulator',
+      },
+    ];
+  });
+
+  return [...architecture, ...deployment].sort(
+    (a, b) => riskSeverityRank(a.severity) - riskSeverityRank(b.severity),
+  );
 }
 
 export function buildRiskHeatmap(brain: ArchitectureBrain) {

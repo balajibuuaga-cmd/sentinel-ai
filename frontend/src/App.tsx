@@ -32,6 +32,8 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const SecretShield = lazy(() => import('./pages/SecretShield'));
 const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
+const RisksRecommendations = lazy(() => import('./pages/RisksRecommendations'));
+const AICopilot = lazy(() => import('./pages/AICopilot'));
 
 function useIntegrationOAuthCallback() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -111,6 +113,8 @@ function AuthenticatedApp({ data, refresh }: { data: DashboardData; refresh: () 
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/secret-shield" element={<SecretShield />} />
             <Route path="/knowledge-base" element={<KnowledgeBase />} />
+            <Route path="/risks" element={<RisksRecommendations />} />
+            <Route path="/copilot" element={<AICopilot />} />
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="/signup" element={<Navigate to="/" replace />} />
             <Route path="/forgot-password" element={<Navigate to="/" replace />} />

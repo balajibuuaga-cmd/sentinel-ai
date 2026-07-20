@@ -1,8 +1,15 @@
-import { ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { iconMap } from './icons';
 import type { ActivityItemData } from '../types/dashboard';
 
+const COLLAPSED_COUNT = 8;
+
 export default function ActivityFeed({ items }: { items: ActivityItemData[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? items : items.slice(0, COLLAPSED_COUNT);
+  const hasMore = items.length > COLLAPSED_COUNT;
+
   return (
     <div className="panel activity-panel">
       <div className="activity-header">
@@ -15,7 +22,7 @@ export default function ActivityFeed({ items }: { items: ActivityItemData[] }) {
         <div className="activity-empty">No activity recorded yet.</div>
       ) : (
         <ul className="activity-list">
-          {items.map((item) => {
+          {visible.map((item) => {
             const Icon = iconMap[item.icon];
             return (
               <li key={item.id}>
@@ -31,9 +38,19 @@ export default function ActivityFeed({ items }: { items: ActivityItemData[] }) {
           })}
         </ul>
       )}
-      <button className="activity-view-all">
-        View All Activity <ArrowRight size={14} />
-      </button>
+      {hasMore ? (
+        <button className="activity-view-all" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? (
+            <>
+              Show Less <ChevronUp size={14} />
+            </>
+          ) : (
+            <>
+              View All Activity ({items.length}) <ChevronDown size={14} />
+            </>
+          )}
+        </button>
+      ) : null}
     </div>
   );
 }

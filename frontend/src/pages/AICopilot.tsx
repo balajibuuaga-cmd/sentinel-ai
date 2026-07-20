@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Bot, Send, User } from 'lucide-react';
 import { api } from '../api/client';
 import type { Deployment } from '../api/types';
@@ -46,9 +47,12 @@ export default function AICopilot() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
 
-  async function ask(question: string) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const handedOver = useRef(false);
+
+  const ask = useCallback(async function ask(question: string) {
     const trimmed = question.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed) return;
 
     const userTurn: Turn = { id: nextId.current++, role: 'user', text: trimmed };
     const pendingTurn: Turn = { id: nextId.current++, role: 'assistant', text: 'Thinking...', pending: true };
@@ -71,7 +75,21 @@ export default function AICopilot() {
     } finally {
       setSending(false);
     }
-  }
+  }, [deploymentId]);
+
+  // Declared after `ask` on purpose: naming it in this effect's dependency array
+  // before the const is initialised throws a temporal-dead-zone ReferenceError
+  // during render, which silently broke the whole page.
+  //
+  // The top bar hands its search query over as ?q=. Ask it once on arrival, then
+  // strip the param so a refresh or back-navigation does not re-ask it.
+  useEffect(() => {
+    const question = searchParams.get('q');
+    if (!question || handedOver.current) return;
+    handedOver.current = true;
+    setSearchParams({}, { replace: true });
+    void ask(question);
+  }, [searchParams, setSearchParams, ask]);
 
   return (
     <div className="copilot-page">

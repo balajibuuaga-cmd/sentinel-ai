@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell, Zap, Settings, ShieldCheck, LogOut } from 'lucide-react';
 import type { HeaderStatsData } from '../types/dashboard';
@@ -10,6 +11,30 @@ interface Props {
 
 export default function TopBar({ header, notificationCount, onLogout }: Props) {
   const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  // The field advertises ⌘K, so the shortcut has to actually focus it.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  function submitSearch(event: React.FormEvent) {
+    event.preventDefault();
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    // Hand the question to the copilot page, which asks it on arrival.
+    navigate(`/copilot?q=${encodeURIComponent(trimmed)}`);
+    setQuery('');
+  }
+
   const initials = header.fullName
     .split(' ')
     .map((part) => part[0])
@@ -28,21 +53,35 @@ export default function TopBar({ header, notificationCount, onLogout }: Props) {
         </p>
       </div>
 
-      <div className="topbar-search">
+      <form className="topbar-search" onSubmit={submitSearch}>
         <Search size={16} />
-        <input placeholder="Ask Sentinel anything..." />
+        <input
+          ref={searchRef}
+          placeholder="Ask Sentinel anything..."
+          aria-label="Ask Sentinel anything"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
         <kbd>⌘K</kbd>
-      </div>
+      </form>
 
       <div className="topbar-actions">
-        <button className="icon-pill" title="Compliance">
+        <button
+          className="icon-pill"
+          title="Secret Shield"
+          onClick={() => navigate('/secret-shield')}
+        >
           <ShieldCheck size={16} />
         </button>
         <button className="icon-pill" title="Notifications" onClick={() => navigate('/integrations')}>
           <Bell size={16} />
           {notificationCount > 0 ? <span className="dot-badge">{notificationCount}</span> : null}
         </button>
-        <button className="icon-pill" title="Quick actions">
+        <button
+          className="icon-pill"
+          title="Run a deployment analysis"
+          onClick={() => navigate('/simulator')}
+        >
           <Zap size={16} />
         </button>
         <button className="icon-pill" title="Settings" onClick={() => navigate('/settings')}>

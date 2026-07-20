@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Sparkles, CheckCircle2, ChevronDown, Mic, SendHorizontal, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Sparkles, CheckCircle2, ChevronDown, Maximize2, SendHorizontal } from 'lucide-react';
 import { api } from '../api/client';
 import HolographicAvatar from './HolographicAvatar';
 import type { ExecutiveBriefing as ExecutiveBriefingData } from '../api/types';
@@ -80,9 +81,11 @@ export function AICopilot() {
         </div>
         <div className="copilot-header-right">
           <span className="beta-badge">BETA</span>
-          <button className="copilot-close">
-            <X size={14} />
-          </button>
+          {/* This panel is the dashboard-sized copilot; the full conversation
+              view lives on its own page. */}
+          <Link className="copilot-close" to="/copilot" title="Open full AI Copilot">
+            <Maximize2 size={14} />
+          </Link>
         </div>
       </div>
 
@@ -117,9 +120,6 @@ export function AICopilot() {
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send(value)}
         />
-        <button className="icon-pill small">
-          <Mic size={14} />
-        </button>
         <button className="copilot-send" onClick={() => send(value)} disabled={pending}>
           <SendHorizontal size={15} />
         </button>

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Sparkles,
@@ -44,6 +44,7 @@ interface Props {
 export default function Sidebar({ health, incidentCount, riskCount }: Props) {
   const offset = CIRCUMFERENCE - (health.score / 100) * CIRCUMFERENCE;
   const role = currentSession()?.role ?? '';
+  const navigate = useNavigate();
 
   const navItems = [
     { label: 'Command Center', icon: LayoutDashboard, to: '/', end: true },
@@ -81,27 +82,22 @@ export default function Sidebar({ health, incidentCount, riskCount }: Props) {
         </div>
       </div>
 
+      {/* Every entry routes somewhere. There is deliberately no disabled variant:
+          a nav item that cannot be opened - especially one carrying a badge
+          count - reads as a broken product rather than a coming-soon hint. */}
       <nav className="nav">
-        {navItems.map((item) =>
-          item.to ? (
-            <NavLink
-              key={item.label}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <item.icon size={17} strokeWidth={2} />
-              <span>{item.label}</span>
-              {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
-            </NavLink>
-          ) : (
-            <button key={item.label} className="nav-item nav-item-disabled" disabled>
-              <item.icon size={17} strokeWidth={2} />
-              <span>{item.label}</span>
-              {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
-            </button>
-          ),
-        )}
+        {navItems.map((item) => (
+          <NavLink
+            key={item.label}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <item.icon size={17} strokeWidth={2} />
+            <span>{item.label}</span>
+            {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
+          </NavLink>
+        ))}
       </nav>
 
       <div className="health-card" title={health.summary}>
@@ -124,7 +120,7 @@ export default function Sidebar({ health, incidentCount, riskCount }: Props) {
         </div>
         <div className="health-label">{health.label}</div>
         <div className="health-delta">Engineering DNA score</div>
-        <button className="create-analysis-btn">
+        <button className="create-analysis-btn" onClick={() => navigate('/simulator')}>
           <Plus size={15} />
           Create New Analysis
         </button>

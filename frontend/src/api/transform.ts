@@ -460,8 +460,12 @@ export function buildEngineeringHealth(dna: EngineeringDna) {
   return { score: dna.overall, label, summary: dna.summary };
 }
 
+// Kept generous rather than trimmed to the collapsed height: ActivityFeed shows
+// the first few and expands in place, so it needs more than fits on screen.
+const ACTIVITY_FEED_LIMIT = 40;
+
 export function buildActivityFeed(events: AuditEvent[]) {
-  return events.slice(0, 8).map((event) => {
+  return events.slice(0, ACTIVITY_FEED_LIMIT).map((event) => {
     const { tone, icon } = classifyAction(event.action);
     return {
       id: String(event.id),

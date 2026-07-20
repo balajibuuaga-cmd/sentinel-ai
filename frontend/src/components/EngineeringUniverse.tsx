@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Boxes, LayoutGrid, RefreshCw, Maximize2, Plus, Minus } from 'lucide-react';
 import ServiceGraph from './ServiceGraph';
 import EngineeringUniverse3D, { type EngineeringUniverse3DHandle } from './EngineeringUniverse3D';
@@ -50,9 +51,11 @@ export default function EngineeringUniverse({ nodes, edges, riskScores, onRefres
           <button className="icon-pill small" onClick={onRefresh} title="Refresh live data">
             <RefreshCw size={14} />
           </button>
-          <button className="icon-pill small">
+          {/* The panel is a preview of the full topology; expanding means
+              opening the dedicated Architecture view. */}
+          <Link className="icon-pill small" to="/architecture" title="Open full architecture view">
             <Maximize2 size={14} />
-          </button>
+          </Link>
         </div>
       </div>
 

@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
+import { Link } from 'react-router-dom';
 import { Activity, ArrowRight, Plug, TrendingUp, WebhookOff } from 'lucide-react';
 import type { BusinessImpactData, RiskHeatmapSlice, RiskTrendPoint } from '../types/dashboard';
 import type { RiskProjection } from '../api/transform';
@@ -185,9 +186,9 @@ export function BusinessImpactCard({ data }: { data: BusinessImpactData }) {
           <span className="impact-badge">{data.downtimeRisk}</span>
         </div>
       </div>
-      <button className="impact-cta">
+      <Link className="impact-cta" to="/executive">
         View Impact Analysis <ArrowRight size={14} />
-      </button>
+      </Link>
     </div>
   );
 }

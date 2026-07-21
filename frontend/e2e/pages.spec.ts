@@ -152,4 +152,53 @@ test.describe('deployments list', () => {
     const rows = await page.locator('.simulator-history .operator-row').count();
     expect(await badges.count()).toBe(Math.min(rows, 12));
   });
+
+  // The rows showed a risk score and a status, which invites a click, and were
+  // plain divs with no handler and no detail route behind them.
+  test('selecting a deployment reveals its assessment', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/simulator');
+
+    const firstRow = page.locator('.deployment-row-button').first();
+    await expect(firstRow).toBeVisible({ timeout: 20_000 });
+    await expect(firstRow).toHaveAttribute('aria-expanded', 'false');
+
+    await firstRow.click();
+
+    await expect(firstRow).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('.deployment-detail').first()).toBeVisible();
+    await expect(page.getByText('Recommendation').first()).toBeVisible();
+  });
+
+  test('selecting the same deployment again collapses it', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/simulator');
+
+    const firstRow = page.locator('.deployment-row-button').first();
+    await expect(firstRow).toBeVisible({ timeout: 20_000 });
+
+    await firstRow.click();
+    await expect(page.locator('.deployment-detail')).toHaveCount(1);
+
+    await firstRow.click();
+    await expect(page.locator('.deployment-detail')).toHaveCount(0);
+  });
+
+  test('only one deployment is expanded at a time', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/simulator');
+
+    const rows = page.locator('.deployment-row-button');
+    await expect(rows.first()).toBeVisible({ timeout: 20_000 });
+    if ((await rows.count()) < 2) {
+      test.skip(true, 'needs at least two deployments to check exclusivity');
+    }
+
+    await rows.nth(0).click();
+    await rows.nth(1).click();
+
+    await expect(page.locator('.deployment-detail')).toHaveCount(1);
+    await expect(rows.nth(0)).toHaveAttribute('aria-expanded', 'false');
+    await expect(rows.nth(1)).toHaveAttribute('aria-expanded', 'true');
+  });
 });

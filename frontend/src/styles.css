@@ -4264,3 +4264,137 @@
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-dim);
 }
+
+/* Expandable deployment rows: the risk assessment is already loaded, so
+   selecting a row reveals it in place rather than fetching a detail view. */
+.deployment-entry {
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.deployment-entry.open {
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.deployment-row-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.deployment-row-button:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.deployment-row-button:focus-visible {
+  outline: 2px solid rgba(79, 140, 255, 0.6);
+  outline-offset: -2px;
+}
+
+.deployment-chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  transition: transform 0.2s ease;
+}
+
+.deployment-entry.open .deployment-chevron {
+  transform: rotate(180deg);
+}
+
+.deployment-detail {
+  padding: 4px 14px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.deployment-detail-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.deployment-detail-explanation {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.deployment-detail-reco {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(79, 140, 255, 0.08);
+  border: 1px solid rgba(79, 140, 255, 0.18);
+}
+
+.deployment-detail-reco strong,
+.deployment-reasons strong {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--blue, #4f8cff);
+  margin-bottom: 4px;
+}
+
+.deployment-detail-reco p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.deployment-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deployment-reasons strong {
+  color: var(--text-dim);
+}
+
+.deployment-reason {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.deployment-reason-category {
+  font-weight: 650;
+  flex-shrink: 0;
+}
+
+.deployment-reason-evidence {
+  color: var(--text-dim);
+  flex: 1;
+  min-width: 0;
+}
+
+.deployment-reason-impact {
+  flex-shrink: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.deployment-detail-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+}

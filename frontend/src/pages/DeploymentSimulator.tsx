@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Rocket, GitBranch, Layers, ShieldAlert, Sparkles } from 'lucide-react';
+import { Rocket, GitBranch, Layers, ShieldAlert, Sparkles, ChevronDown } from 'lucide-react';
 import { api } from '../api/client';
 import type { Deployment } from '../api/types';
 
@@ -45,6 +45,7 @@ export default function DeploymentSimulator() {
   const [result, setResult] = useState<Deployment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<Deployment[]>([]);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const cancelledRef = useRef(false);
 
   // The page only ever showed simulations it had just run, held in memory, so
@@ -261,25 +262,79 @@ export default function DeploymentSimulator() {
             </div>
           ) : (
             <div className="operator-list">
-              {history.slice(0, 12).map((d) => (
-                <div key={d.id} className="operator-row">
-                  <span className={`risk-pill risk-${(d.riskAssessment?.level ?? 'low').toLowerCase()}`}>
-                    {d.riskAssessment?.level ?? 'N/A'}
-                  </span>
-                  <div className="operator-row-body">
-                    <div className="operator-row-title">
-                      {d.serviceName} &middot; {d.deploymentKey}
-                      <span className={`deployment-source source-${deploymentSource(d).toLowerCase()}`}>
-                        {deploymentSource(d)}
+              {history.slice(0, 12).map((d) => {
+                const open = expandedId === d.id;
+                return (
+                  <div key={d.id} className={`deployment-entry${open ? ' open' : ''}`}>
+                    {/* A row that shows a risk score invites a click, so it has to
+                        answer one. The assessment is already loaded, so this
+                        expands in place rather than fetching a detail view. */}
+                    <button
+                      className="operator-row deployment-row-button"
+                      aria-expanded={open}
+                      onClick={() => setExpandedId(open ? null : d.id)}
+                    >
+                      <span className={`risk-pill risk-${(d.riskAssessment?.level ?? 'low').toLowerCase()}`}>
+                        {d.riskAssessment?.level ?? 'N/A'}
                       </span>
-                    </div>
-                    <div className="operator-row-meta">
-                      {d.riskAssessment?.score ?? 0}% risk &middot; {d.status} &middot; {d.environment}
-                      {d.commitSha ? ` · ${d.commitSha.slice(0, 7)}` : ''}
-                    </div>
+                      <div className="operator-row-body">
+                        <div className="operator-row-title">
+                          {d.serviceName} &middot; {d.deploymentKey}
+                          <span className={`deployment-source source-${deploymentSource(d).toLowerCase()}`}>
+                            {deploymentSource(d)}
+                          </span>
+                        </div>
+                        <div className="operator-row-meta">
+                          {d.riskAssessment?.score ?? 0}% risk &middot; {d.status} &middot; {d.environment}
+                          {d.commitSha ? ` · ${d.commitSha.slice(0, 7)}` : ''}
+                        </div>
+                      </div>
+                      <ChevronDown size={15} className="deployment-chevron" />
+                    </button>
+
+                    {open ? (
+                      <div className="deployment-detail">
+                        {d.pullRequestTitle ? (
+                          <p className="deployment-detail-title">{d.pullRequestTitle}</p>
+                        ) : null}
+
+                        {d.riskAssessment ? (
+                          <>
+                            <p className="deployment-detail-explanation">{d.riskAssessment.aiExplanation}</p>
+
+                            <div className="deployment-detail-reco">
+                              <strong>Recommendation</strong>
+                              <p>{d.riskAssessment.recommendation}</p>
+                            </div>
+
+                            {d.riskAssessment.reasons.length > 0 ? (
+                              <div className="deployment-reasons">
+                                <strong>Evidence</strong>
+                                {d.riskAssessment.reasons.map((reason, index) => (
+                                  <div key={`${d.id}-${index}`} className="deployment-reason">
+                                    <span className="deployment-reason-category">{reason.category}</span>
+                                    <span className="deployment-reason-evidence">{reason.evidence}</span>
+                                    <span className="deployment-reason-impact">impact {reason.impact}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </>
+                        ) : (
+                          <p className="deployment-detail-explanation">
+                            This deployment has not been assessed yet.
+                          </p>
+                        )}
+
+                        <div className="deployment-detail-meta">
+                          {d.ownerTeam} &middot; {new Date(d.createdAt).toLocaleString()}
+                          {d.dependencies.length > 0 ? ` · depends on ${d.dependencies.join(', ')}` : ''}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

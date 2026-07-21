@@ -4,18 +4,15 @@
 
 🔗 **Live:** [getsentinelai.dev](https://getsentinelai.dev)
 
-Sentinel AI answers one high-value question:
+Sentinel AI scores a deployment for risk before you ship it, and shows you the evidence behind the
+score.
 
-> Is this deployment risky *before* it reaches production?
+It reads deployment signals, service dependencies, CI and Jira context, and incident history, then
+returns a risk score, an explanation citing the evidence it used, a recommendation, an approval
+decision, and an audit trail.
 
-Most engineering tools tell you what happened after production breaks. Sentinel AI reviews the
-organization continuously *before* it breaks — correlating deployment signals, service dependencies,
-CI/Jira context, and incident history into a release judgment with a risk score, a plain-English
-explanation grounded in evidence, a recommendation, an approval decision, and an audit trail.
-
-It is a real, deployed system: a Spring Boot API and a React console running on AWS, with genuine
-Amazon Bedrock (Claude) reasoning, multi-tenant isolation, MFA, and an automated deploy pipeline —
-not a mock or a prototype.
+The system runs in production on AWS. A Spring Boot API serves a React console, Amazon Bedrock
+(Claude) does the reasoning, and the deploy pipeline rolls itself back when a health check fails.
 
 ---
 
@@ -37,23 +34,23 @@ not a mock or a prototype.
 
 ## What's Actually Running
 
-This section describes the **live production system**, distinct from the aspirational ECS/WAF target
-described under [Future AWS Target](#future-aws-target).
+Everything in this table runs in production today. The ECS and WAF architecture under
+[Future AWS Target](#future-aws-target) does not.
 
 | Layer | Implementation |
 |---|---|
 | **Domain / TLS** | `getsentinelai.dev` via Route 53, Let's Encrypt certificate (auto-renewing), Nginx reverse proxy |
 | **Compute** | Single EC2 `t4g.micro` running the Spring Boot jar as a systemd service (`sentinel-ai`), fronted by Nginx, on a static Elastic IP |
-| **Database** | AWS RDS PostgreSQL (`sentinel-ai-db`) in a **private** subnet — not publicly reachable |
+| **Database** | AWS RDS PostgreSQL (`sentinel-ai-db`) in a **private** subnet, unreachable from the internet |
 | **AI reasoning** | **Real AWS Bedrock calls** to Claude (`us.anthropic.claude-sonnet-4-6`) via an IAM instance role scoped to `bedrock:InvokeModel`, with a deterministic fallback provider |
-| **Auth** | Hybrid: DB-backed email/password (BCrypt) **+ TOTP MFA**, alongside a fully-wired AWS Cognito SSO path |
+| **Auth** | Hybrid: DB-backed email/password (BCrypt) **+ TOTP MFA**, alongside a wired AWS Cognito SSO path |
 | **Email** | AWS SES (`noreply@getsentinelai.dev`) with verified domain identity, DKIM/SPF/DMARC |
 | **Monitoring** | Route 53 health check → CloudWatch alarm → SNS email alerting |
 | **Secrets** | Loaded from AWS Secrets Manager at boot (opt-in via `SENTINEL_SECRETS_ID`) |
-| **Deploys** | `scripts/deploy.sh` — builds, ships, restarts, health-checks, and **auto-rolls back** on failure |
+| **Deploys** | `scripts/deploy.sh` builds, ships, restarts, health-checks, and **auto-rolls back** on failure |
 
-**Scale of the codebase:** 201 Java source files across 20 REST controllers, 9 Flyway migrations,
-24 React pages, 54 backend tests, and Playwright end-to-end browser coverage.
+**Size:** 202 Java source files, 20 REST controllers, 9 Flyway migrations, 26 React pages,
+60 backend tests, 36 Playwright browser tests.
 
 ---
 
@@ -62,7 +59,7 @@ described under [Future AWS Target](#future-aws-target).
 ```text
                         ┌─────────────────────────────────────┐
                         │   React 19 + TypeScript Console     │
-                        │   (Vite, 24 lazy-loaded routes)     │
+                        │   (Vite, 26 lazy-loaded routes)     │
                         └──────────────────┬──────────────────┘
                                            │  HTTPS
                         ┌──────────────────▼──────────────────┐
@@ -100,14 +97,13 @@ described under [Future AWS Target](#future-aws-target).
         └──────────────────┘
 ```
 
-The console is deliberately **not chart-first**. It's a command center: the primary interaction is
-asking Sentinel what it thinks about a release, then approving or blocking based on its evidence.
+The console works as a command center rather than a dashboard. You ask Sentinel what it thinks about
+a release, read the evidence it cites, then approve or block.
 
-**Design note — why the AI never blocks the product:** risk *scoring* is fully deterministic and
-auditable. The LLM produces explanation, recommendation, briefing, and review *text* behind a
-`ChiefEngineerReasoningProvider` interface. If Bedrock is slow, throttled, or unavailable, a
-deterministic provider transparently takes over, so no user-facing flow depends on model
-availability.
+**Why the AI never blocks the product.** Risk scoring is deterministic and auditable. The LLM writes
+only the explanation, recommendation, briefing, and review text, behind a
+`ChiefEngineerReasoningProvider` interface. When Bedrock is slow, throttled, or down, a deterministic
+provider answers in its place, so no user flow waits on the model.
 
 ---
 
@@ -128,19 +124,19 @@ availability.
 ## Features
 
 ### AI Chief Engineer
-- Conversational release-risk console — ask questions, get evidence-backed judgments
+- Conversational release-risk console: ask a question, get a judgment with its evidence
 - Deployment risk analysis with score, severity, and plain-English explanation
 - **AI Engineer** mode: merge / wait / block recommendations on pull requests
 - Executive briefing with projected risk savings, and a board-ready report view
 - Durable **AI memory** timeline that recalls recurring deployment patterns
 - **Engineering DNA** scoring across maturity, velocity, resilience, ownership, review discipline
 - **Architecture Brain**: service maps, dependency edges, and architecture risk detection
-- Graceful deterministic fallback whenever the model is unavailable
+- A deterministic fallback answers when the model is unavailable
 
 ### Observability into the AI itself
 - Per-request **token usage, latency, and cost** capture for every Bedrock call
-- Analytics dashboard attributing AI spend rather than leaving it opaque
-- Fallback tracking — see exactly when and how often the deterministic path engaged
+- An analytics dashboard that attributes AI spend to the requests that caused it
+- Fallback tracking: see when the deterministic path took over, and how often
 
 ### Operations
 - **Incident command center** with a real per-step remediation pipeline
@@ -148,12 +144,12 @@ availability.
 - Signed GitHub webhook ingestion with delivery inspection, dead-letter state, and rate-limited replay
 - Integration installation flows (GitHub / Jira / CI) with health and sync history
 - **Operator console** exposing runtime readiness, counters, provider failures, and recent server errors
-- In-app **error tracking** — unhandled server errors captured, tenant-scoped, and surfaced in the UI
+- In-app **error tracking**: the app captures unhandled server errors, scopes them by tenant, and shows them in the UI
 
 ### Platform
 - **Multi-tenant** isolation enforced at the query layer, with role-based access control
 - Immutable-style audit event stream over every consequential action
-- Runtime modes: combined process, or separately-scalable API and worker runtimes
+- Runtime modes: one combined process, or API and worker runtimes you scale on their own
 - Structured JSON operational logging with `X-Request-ID` correlation end to end
 - Consistent JSON error contract carrying the request ID for log correlation
 
@@ -161,7 +157,7 @@ availability.
 
 ## Security
 
-Security was treated as a first-class requirement rather than a later pass.
+Each control below ships in the running system. None of it is planned work.
 
 | Control | Implementation |
 |---|---|
@@ -170,14 +166,14 @@ Security was treated as a first-class requirement rather than a later pass.
 | **SSO** | AWS Cognito authorization-code flow, RS256 verified against pool JWKS (issuer, audience, expiry, token use, OAuth state) |
 | **Brute force** | Per-account lockout after repeated failures, plus a tighter rate-limit bucket on `/api/auth/**` |
 | **Tenant isolation** | Every lookup scoped by tenant at the **query layer** (`findByIdAndTenantId`), so a wrong ID returns nothing rather than another tenant's row |
-| **Secret leakage** | **Secret Shield** — deterministic scanner plus AI risk gates; values masked before reaching logs or UI |
-| **Secrets at rest** | AWS Secrets Manager loaded at boot; fail-fast if unreachable, so the app never silently starts on dev defaults |
+| **Secret leakage** | **Secret Shield**: a deterministic scanner plus AI risk gates. Values are masked before they reach logs or the UI |
+| **Secrets at rest** | AWS Secrets Manager loaded at boot; fail-fast if unreachable, so the app refuses to start on dev defaults |
 | **Network** | RDS in a private subnet (not publicly accessible); SSH restricted to a single `/32`, auto-rotated by the deploy script |
 | **Transport** | TLS everywhere via Let's Encrypt, auto-renewing |
 | **Headers** | CSP, frame denial, content-type protection, referrer policy, permissions policy |
 | **Error handling** | Global exception handler returns structured errors with **no stack-trace leakage** |
 | **Auditability** | Append-only audit events for logins, approvals, and privileged actions |
-| **Account enumeration** | Password reset returns an identical response whether or not the address is registered — including when email delivery fails |
+| **Account enumeration** | Password reset returns the same response whether or not the address is registered, including when email delivery fails |
 
 ---
 
@@ -213,13 +209,13 @@ docker compose up --build
 
 Starts PostgreSQL 16, Redis 7, and the app on `http://localhost:8090`.
 
-Flyway migrations are the schema source of truth; Hibernate runs in `validate` mode and never
-mutates production tables automatically.
+Flyway migrations own the schema. Hibernate runs in `validate` mode, so it reads the schema and
+leaves it alone.
 
 ### Demo logins (local only)
 
-The `V5` migration seeds four accounts so a fresh local database is immediately usable, one per role
-plus a second tenant for verifying isolation:
+The `V5` migration seeds four accounts so a fresh database works on first boot: one per role, plus a
+second tenant you can use to check isolation.
 
 | Role | Email | Password |
 |---|---|---|
@@ -228,33 +224,33 @@ plus a second tenant for verifying isolation:
 | Viewer | `viewer@sentinel.ai` | `sentinel-viewer` |
 | Second tenant | `acme-release@sentinel.ai` | `sentinel-acme` |
 
-> **These credentials work only against a locally-seeded database.** They have been rotated on the
-> hosted deployment and will not grant access there. Rotate or remove them on any internet-facing
-> environment — seed passwords published in a public repository are not credentials.
+> **These credentials work only against a locally-seeded database.** I rotated them on the hosted
+> deployment, so they grant nothing there. Rotate or remove them on any internet-facing environment.
+> A seed password published in a public repository is not a credential.
 
 ---
 
 ## Testing
 
 ```bash
-# Backend — 54 tests (JUnit + MockMvc, H2)
+# Backend: 60 tests (JUnit + MockMvc, H2)
 ./mvnw -f backend/pom.xml test
 
-# End-to-end — real browser against a real backend
+# End-to-end: 36 tests in a real browser against a real backend
 cd frontend
 npm run test:e2e
 ```
 
-The Playwright suite boots **both** the Spring Boot jar and the Vite dev server on isolated ports
-(`reuseExistingServer: false`) so a stray app on a shared port can never be mistaken for Sentinel —
-then drives the genuine login and routing flow in Chromium.
+The Playwright suite starts its own Spring Boot jar and Vite dev server on isolated ports
+(`reuseExistingServer: false`), so another app sitting on a shared port cannot stand in for Sentinel.
+It then drives login and routing in Chromium against that stack.
 
 **CI** (`.github/workflows/ci.yml`) runs three parallel jobs on every push and PR:
 
 | Job | Checks |
 |---|---|
 | `test` | Backend test suite, frontend syntax, script syntax, Docker image build |
-| `e2e` | Playwright browser tests against a freshly-built jar |
+| `e2e` | Playwright browser tests against a newly built jar |
 | `terraform` | `fmt -check`, `init`, and `validate` on `infra/aws` |
 
 ---
@@ -273,7 +269,7 @@ then drives the genuine login and routing flow in Chromium.
    so stale addresses don't accumulate as standing exposure.
 3. Ships both artifacts, preserving the previous release as `app.jar.prev` / `html.prev`.
 4. Restarts the service and polls the health endpoint.
-5. **If the health check fails, it automatically restores the previous release** and exits non-zero.
+5. **When the health check fails, the script restores the previous release** and exits non-zero.
 
 Supporting scripts: `scripts/setup-monitoring.sh` (Route 53 health check → CloudWatch alarm → SNS)
 and `scripts/setup-secrets.sh` (provisions the Secrets Manager secret and prints the least-privilege
@@ -293,9 +289,9 @@ SENTINEL_SECRETS_ID=sentinel-ai/prod      # unset locally → no AWS calls at al
 SENTINEL_SECRETS_REGION=us-east-1
 ```
 
-When set, a flat JSON secret whose keys are the existing environment-variable names is loaded at
-boot as the highest-precedence property source. Unset, it's a complete no-op — local dev and CI stay
-fully offline.
+When you set this, the app fetches a flat JSON secret at boot and layers it in as the
+highest-precedence property source. Its keys are the environment-variable names already used
+elsewhere. Leave it unset and the loader does nothing, so local dev and CI never call AWS.
 
 ### AI provider
 
@@ -424,8 +420,8 @@ Errors return a consistent body whose `requestId` matches the `X-Request-ID` res
 ## Future AWS Target
 
 > **Not yet applied.** The Terraform under [`infra/aws`](infra/aws) describes a possible future
-> architecture (ECS Fargate, ALB, WAF, multi-AZ VPC). It does **not** reflect the current single-EC2
-> deployment — see [What's Actually Running](#whats-actually-running).
+> architecture (ECS Fargate, ALB, WAF, multi-AZ VPC). The running deployment is a single EC2
+> instance. See [What's Actually Running](#whats-actually-running).
 
 It provisions isolated multi-AZ VPC networking, ALB + WAF at the edge, ECS Fargate for the backend,
 private RDS with KMS encryption, Secrets Manager, a Cognito user pool, CloudWatch logs and alarms,
@@ -447,7 +443,7 @@ and least-privilege ECS IAM roles. Security design notes live in
 
 ## Docs
 
-- [DEMO.md](DEMO.md) — two-minute demo talk track
-- [docs/PRD.md](docs/PRD.md) — product requirements
-- [docs/AWS_SECURITY_ARCHITECTURE.md](docs/AWS_SECURITY_ARCHITECTURE.md) — security design and controls map
-- [docs/openapi.yaml](docs/openapi.yaml) — full API specification
+- [DEMO.md](DEMO.md): two-minute demo talk track
+- [docs/PRD.md](docs/PRD.md): product requirements
+- [docs/AWS_SECURITY_ARCHITECTURE.md](docs/AWS_SECURITY_ARCHITECTURE.md): security design and controls map
+- [docs/openapi.yaml](docs/openapi.yaml): full API specification

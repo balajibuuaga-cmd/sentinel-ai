@@ -50,7 +50,7 @@ Everything in this table runs in production today. The ECS and WAF architecture 
 | **Deploys** | `scripts/deploy.sh` builds, ships, restarts, health-checks, and **auto-rolls back** on failure |
 
 **Size:** 202 Java source files, 20 REST controllers, 9 Flyway migrations, 26 React pages,
-60 backend tests, 36 Playwright browser tests.
+72 backend tests, 36 Playwright browser tests.
 
 ---
 
@@ -233,7 +233,7 @@ second tenant you can use to check isolation.
 ## Testing
 
 ```bash
-# Backend: 60 tests (JUnit + MockMvc, H2)
+# Backend: 72 tests (JUnit + MockMvc, H2)
 ./mvnw -f backend/pom.xml test
 
 # End-to-end: 36 tests in a real browser against a real backend

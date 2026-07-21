@@ -146,6 +146,14 @@ export default function Incidents() {
 
           <div className="remediation">
             <div className="ai-briefing-block-label">Remediation Pipeline</div>
+            {/* Running a step records it on the incident and moves the workflow
+                forward. It does not perform the external action itself: there is
+                no Slack, Jira or deploy-rollback integration behind these yet, so
+                the badge says "Recorded", not "Executed". */}
+            <p className="remediation-note">
+              Running a step records it on the incident timeline and advances the workflow. It does
+              not yet perform the external action (Slack, Jira, rollback) itself.
+            </p>
             <div className="remediation-list">
               {PIPELINE_STEPS.map((step) => {
                 const Icon = step.icon;
@@ -158,14 +166,14 @@ export default function Incidents() {
                     </span>
                     <span className="remediation-step-label">{step.label}</span>
                     {done ? (
-                      <span className="remediation-step-state">Executed</span>
+                      <span className="remediation-step-state">Recorded</span>
                     ) : (
                       <button
                         className="remediation-step-run"
                         onClick={() => runStep(step.key)}
                         disabled={runningStep !== null || autonomousRunning}
                       >
-                        <Play size={12} /> {running ? 'Running...' : 'Run'}
+                        <Play size={12} /> {running ? 'Recording...' : 'Run'}
                       </button>
                     )}
                   </div>
@@ -179,10 +187,10 @@ export default function Incidents() {
                 onClick={runAutonomousRemediation}
                 disabled={autonomousRunning || runningStep !== null}
               >
-                {autonomousRunning ? 'Executing...' : `Approve Autonomous Remediation (${remaining} steps)`}
+                {autonomousRunning ? 'Recording...' : `Record Autonomous Remediation (${remaining} steps)`}
               </button>
             ) : (
-              <div className="remediation-complete">All remediation steps executed and recorded on the incident timeline.</div>
+              <div className="remediation-complete">All remediation steps recorded on the incident timeline.</div>
             )}
           </div>
         </div>

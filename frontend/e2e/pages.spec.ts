@@ -172,6 +172,27 @@ test.describe('deployments', () => {
     await expect(page.getByRole('button', { name: 'Run Simulation' })).toBeVisible();
   });
 
+  // "Simulate this deployment" left repository and pipeline blank, which the
+  // backend requires, so the run failed with a bare "Request validation failed".
+  test('simulating from a deployment runs without a validation error', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/simulator');
+    await page.locator('.deployment-row-button').first().click();
+    await expect(page.locator('.deployment-detail-panel')).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: /Simulate this deployment/ }).click();
+
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes('/api/integrations/ci/simulate') && r.status() < 400,
+        { timeout: 30_000 },
+      ),
+      page.getByRole('button', { name: 'Run Simulation' }).click(),
+    ]);
+
+    await expect(page.locator('.engineer-error')).toHaveCount(0);
+    await expect(page.locator('.simulator-result')).toBeVisible({ timeout: 20_000 });
+  });
+
   test('a new simulation starts blank rather than pre-filled with invented data', async ({ page }) => {
     await signIn(page);
     await page.goto('/simulator');

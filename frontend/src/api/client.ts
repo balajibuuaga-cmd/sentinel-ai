@@ -80,11 +80,21 @@ export function currentSession(): AuthResponse | null {
 
 export class ApiError extends Error {
   status: number;
+  /** Field-level validation errors from the API, e.g. { repository: 'must not be blank' }. */
+  details: Record<string, string>;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, details: Record<string, string> = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.details = details;
+  }
+
+  /** A message that names the offending fields when the API reported any. */
+  detailedMessage(): string {
+    const fields = Object.entries(this.details);
+    if (fields.length === 0) return this.message;
+    return `${this.message} (${fields.map(([field, reason]) => `${field}: ${reason}`).join(', ')})`;
   }
 }
 
@@ -100,13 +110,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     let message = `${init?.method ?? 'GET'} ${path} failed with ${response.status}`;
+    let details: Record<string, string> = {};
     try {
       const body = await response.json();
       if (body?.message) message = body.message;
+      if (body?.details && typeof body.details === 'object') details = body.details;
     } catch {
       // response body wasn't JSON, keep the default message
     }
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, details);
   }
 
   if (response.status === 204) {

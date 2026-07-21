@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Rocket, GitBranch, Layers, ShieldAlert, Sparkles, ArrowLeft, Plus } from 'lucide-react';
-import { api } from '../api/client';
+import { ApiError, api } from '../api/client';
 import type { Deployment } from '../api/types';
 
 // A blank form. The page used to open with a filled-in payment-api deployment
@@ -125,15 +125,23 @@ export default function DeploymentSimulator() {
     setResult(null);
     setStage('ingesting');
 
+    // The engine scores from service, environment, status, tests, coverage and
+    // dependencies. Repository, pipeline and commit are labels on the resulting
+    // record and are not stored on a deployment, so a "Simulate this deployment"
+    // leaves them blank. The backend still requires them, so fill simulation
+    // defaults rather than fail: an explicitly SIMULATED record inventing its own
+    // pipeline label is honest in a way a demo connection claiming to be live was
+    // not.
+    const service = form.serviceName.trim() || 'service';
     try {
       const created = await api.simulateCiSignal({
         provider: form.provider,
-        repository: form.repository,
+        repository: form.repository.trim() || `simulation/${service}`,
         serviceName: form.serviceName,
         ownerTeam: form.ownerTeam,
         environment: form.environment,
         commitSha: form.commitSha || Math.random().toString(16).slice(2, 9),
-        pipelineName: form.pipelineName,
+        pipelineName: form.pipelineName.trim() || `simulated-${form.environment.trim() || 'deploy'}`,
         buildUrl: form.buildUrl || null,
         status: form.status,
         failedTests: form.failedTests,
@@ -159,7 +167,9 @@ export default function DeploymentSimulator() {
       loadDeployments();
     } catch (err) {
       if (cancelledRef.current) return;
-      setError(err instanceof Error ? err.message : 'Simulation failed');
+      // Name the fields the API rejected rather than a bare "Request validation
+      // failed", which told the user nothing about what to fix.
+      setError(err instanceof ApiError ? err.detailedMessage() : err instanceof Error ? err.message : 'Simulation failed');
       setStage('idle');
     }
   }

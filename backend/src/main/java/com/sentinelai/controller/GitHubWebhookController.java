@@ -6,6 +6,7 @@ import com.sentinelai.model.Deployment;
 import com.sentinelai.model.GitHubWebhookRequest;
 import com.sentinelai.model.WebhookDelivery;
 import com.sentinelai.observability.RequestContext;
+import com.sentinelai.service.GitHubEventTranslator;
 import com.sentinelai.service.GitHubWebhookService;
 import com.sentinelai.service.WebhookDeliveryService;
 import jakarta.validation.Valid;
@@ -30,17 +31,20 @@ public class GitHubWebhookController {
     private final GitHubWebhookService gitHubWebhookService;
     private final WebhookDeliveryService webhookDeliveryService;
     private final ObjectMapper objectMapper;
+    private final GitHubEventTranslator eventTranslator;
     private final String webhookSecret;
 
     public GitHubWebhookController(
             GitHubWebhookService gitHubWebhookService,
             WebhookDeliveryService webhookDeliveryService,
             ObjectMapper objectMapper,
+            GitHubEventTranslator eventTranslator,
             @Value("${sentinel.github.webhook-secret}") String webhookSecret
     ) {
         this.gitHubWebhookService = gitHubWebhookService;
         this.webhookDeliveryService = webhookDeliveryService;
         this.objectMapper = objectMapper;
+        this.eventTranslator = eventTranslator;
         this.webhookSecret = webhookSecret;
     }
 
@@ -63,8 +67,24 @@ public class GitHubWebhookController {
                 RequestContext.requestId()
         );
         try {
-            GitHubWebhookRequest request = objectMapper.readValue(body, GitHubWebhookRequest.class);
-            Deployment deployment = gitHubWebhookService.ingest(request);
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(body);
+
+            // GitHub's own payload names none of GitHubWebhookRequest's fields, so
+            // translate it. Anything else is assumed to already be Sentinel's shape,
+            // which is what the simulate endpoint and existing callers send.
+            java.util.Optional<GitHubWebhookRequest> translated = isNativeGitHubEvent(eventType)
+                    ? eventTranslator.translate(eventType, root)
+                    : java.util.Optional.of(objectMapper.treeToValue(root, GitHubWebhookRequest.class));
+
+            if (translated.isEmpty()) {
+                // A ping, or an event carrying no deployment signal. Record it and
+                // answer 200: an error here would show as a failed delivery in
+                // GitHub and, after enough of them, disable the webhook.
+                webhookDeliveryService.markAcknowledged(delivery, "no deployment signal in " + eventType);
+                return ResponseEntity.noContent().build();
+            }
+
+            Deployment deployment = gitHubWebhookService.ingest(translated.get());
             webhookDeliveryService.markSucceeded(delivery, deployment);
             return ResponseEntity.ok(deployment);
         } catch (Exception ex) {
@@ -79,6 +99,17 @@ public class GitHubWebhookController {
     @PostMapping("/simulate")
     public Deployment simulate(@Valid @RequestBody GitHubWebhookRequest request) {
         return gitHubWebhookService.ingest(request);
+    }
+
+    /**
+     * GitHub always sets X-GitHub-Event. Sentinel's own callers, including the
+     * simulate endpoint and the existing tests, do not, so the header is what
+     * distinguishes a native payload from Sentinel's shape.
+     */
+    private boolean isNativeGitHubEvent(String eventType) {
+        return eventType != null
+                && java.util.List.of("ping", "pull_request", "push", "check_suite", "workflow_run", "deployment")
+                        .contains(eventType);
     }
 
     private boolean validSignature(String signature, String body) throws Exception {

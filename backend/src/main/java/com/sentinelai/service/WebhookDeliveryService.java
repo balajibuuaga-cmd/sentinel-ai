@@ -79,6 +79,18 @@ public class WebhookDeliveryService {
         return webhookDeliveryRepository.save(delivery);
     }
 
+    /**
+     * Records a delivery that was handled correctly but produced no deployment,
+     * such as GitHub's ping or an event type Sentinel does not act on. These are
+     * successes: answering them with an error would show as a failed delivery in
+     * GitHub and eventually disable the webhook.
+     */
+    @Transactional
+    public WebhookDelivery markAcknowledged(WebhookDelivery delivery, String reason) {
+        delivery.succeed(reason);
+        return webhookDeliveryRepository.save(delivery);
+    }
+
     @Transactional
     public WebhookDelivery markFailed(WebhookDelivery delivery, String reason) {
         delivery.fail(reason);

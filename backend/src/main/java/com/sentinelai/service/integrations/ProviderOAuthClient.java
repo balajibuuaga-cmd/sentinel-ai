@@ -83,6 +83,33 @@ public class ProviderOAuthClient {
      * completed exchange. False means the Connect action would round-trip to the
      * provider and come back unable to swap the code for a token.
      */
+    /**
+     * Asks the provider who the token belongs to. Best-effort: a failure here
+     * must not fail an otherwise successful exchange, so it returns blank and
+     * lets the caller fall back.
+     */
+    private String authenticatedAccount(IntegrationProvider provider, String accessToken) {
+        if (provider != IntegrationProvider.GITHUB) {
+            return "";
+        }
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("https://api.github.com/user"))
+                    .header("Authorization", "Bearer " + accessToken)
+                    .header("Accept", "application/vnd.github+json")
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                return "";
+            }
+            return objectMapper.readTree(response.body()).path("login").asText("");
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+
     public boolean canStartOAuth(IntegrationProvider provider) {
         return realExchangeEnabled && config(provider).isConfigured();
     }
@@ -105,7 +132,16 @@ public class ProviderOAuthClient {
                 throw new IllegalStateException("Provider did not return an access token");
             }
             String refreshToken = payload.path("refresh_token").asText("");
-            String account = firstNonBlank(request.externalAccount(), payload.path("account_id").asText(""), payload.path("scope").asText(""), fallbackAccount);
+            // "scope" was in this chain and won for GitHub, whose token response
+            // carries no account_id: the connection ended up named
+            // "read:org,read:user,repo" and every sync then failed because that
+            // is not an owner/repository. A scope list never identifies an
+            // account, so resolve the real one from the provider instead.
+            String account = firstNonBlank(
+                    request.externalAccount(),
+                    payload.path("account_id").asText(""),
+                    authenticatedAccount(provider, accessToken),
+                    fallbackAccount);
             return new IntegrationOAuthResult(
                     account,
                     accessToken,

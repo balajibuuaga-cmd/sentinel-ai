@@ -3,6 +3,7 @@ package com.sentinelai;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -99,5 +100,42 @@ class IntegrationInstallHonestyTests {
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString())
                 .get("authResponse").get("token").asText();
+    }
+
+    @Test
+    void aGitHubAccountMustBeOwnerSlashRepository() throws Exception {
+        String token = login();
+        JsonNode connection = install(token, "GITHUB");
+        long id = connection.get("id").asLong();
+
+        // A bare scope list or username is not a repository. This rejects the
+        // value that an earlier bug wrote here: GitHub's token response carries
+        // no account_id, so the OAuth scope string won the fallback chain and
+        // the connection was named "read:org,read:user,repo".
+        mockMvc.perform(put("/api/integration-connections/" + id + "/account")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("externalAccount", "read:org,read:user,repo"))))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void aValidRepositoryIsAcceptedWithoutTouchingTheConnectionState() throws Exception {
+        String token = login();
+        JsonNode connection = install(token, "GITHUB");
+        long id = connection.get("id").asLong();
+
+        MvcResult result = mockMvc.perform(put("/api/integration-connections/" + id + "/account")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("externalAccount", "octocat/hello-world"))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode updated = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(updated.get("externalAccount").asText()).isEqualTo("octocat/hello-world");
+        assertThat(updated.get("status").asText()).isEqualTo("CONNECTED");
     }
 }

@@ -126,6 +126,15 @@ public class IntegrationConnection {
         }
     }
 
+    /**
+     * Points a connected integration at a different account or repository,
+     * leaving the stored token and connection state alone.
+     */
+    public void retarget(String externalAccount) {
+        this.externalAccount = externalAccount;
+        this.statusDetail = "Reading from " + externalAccount + ". Run a sync to pull the latest signals.";
+    }
+
     public void disconnect() {
         this.status = IntegrationStatus.DISCONNECTED;
         this.healthScore = 0;

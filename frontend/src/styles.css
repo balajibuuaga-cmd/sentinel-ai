@@ -4205,3 +4205,40 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* Retarget a connected integration (repository / account) */
+.integration-target-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.integration-target-form label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.integration-target-row {
+  display: flex;
+  gap: 8px;
+}
+
+.integration-target-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.integration-target-row input:focus {
+  outline: none;
+  border-color: rgba(79, 140, 255, 0.5);
+}

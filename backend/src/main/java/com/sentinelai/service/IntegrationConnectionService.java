@@ -229,6 +229,33 @@ public class IntegrationConnectionService {
         return withOAuthAvailability(saved);
     }
 
+    /**
+     * Sets which account or repository a connected integration reads from.
+     *
+     * <p>Separate from install because the OAuth round trip leaves no room to
+     * ask: the browser goes to the provider and comes back with a code, so the
+     * target has to be chosen afterwards. Reusing install for this would drop a
+     * live connection back to a demo registration, since that call carries no
+     * authorization code.
+     */
+    @Transactional
+    public IntegrationConnection updateExternalAccount(long id, String externalAccount) {
+        if (externalAccount == null || externalAccount.isBlank()) {
+            throw new IllegalArgumentException("Account must not be blank.");
+        }
+        IntegrationConnection connection = repository.findByIdAndTenantId(id, tenantContext.tenantId())
+                .orElseThrow(() -> new IllegalArgumentException("Integration not found: " + id));
+        String trimmed = externalAccount.trim();
+        if (connection.getProvider() == IntegrationProvider.GITHUB && !trimmed.contains("/")) {
+            throw new IllegalArgumentException("GitHub account must be owner/repository.");
+        }
+        connection.retarget(trimmed);
+        IntegrationConnection saved = repository.save(connection);
+        audit("INTEGRATION_RETARGETED", connection.getProvider().name(),
+                "Pointed " + connection.getDisplayName() + " at " + trimmed + ".");
+        return withOAuthAvailability(saved);
+    }
+
     @Transactional
     public IntegrationConnection disconnect(long id) {
         IntegrationConnection connection = repository.findByIdAndTenantId(id, tenantContext.tenantId())

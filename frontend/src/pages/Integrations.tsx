@@ -42,6 +42,7 @@ function formatDateTime(iso: string | null) {
 
 export default function Integrations() {
   const [connections, setConnections] = useState<IntegrationConnection[]>([]);
+  const [targetDraft, setTargetDraft] = useState<Record<number, string>>({});
   const [history, setHistory] = useState<IntegrationSyncEvent[]>([]);
   const [busyId, setBusyId] = useState<number | 'install' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +94,20 @@ export default function Integrations() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to connect ${provider}`);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function retarget(id: number, externalAccount: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const updated = await api.updateIntegrationAccount(id, externalAccount.trim());
+      setConnections((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      setTargetDraft((prev) => ({ ...prev, [id]: updated.externalAccount ?? '' }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update the account');
     } finally {
       setBusyId(null);
     }
@@ -173,6 +188,36 @@ export default function Integrations() {
               </div>
 
               {connection.statusDetail ? <p className="integration-card-detail">{connection.statusDetail}</p> : null}
+
+              {/* The OAuth round trip leaves no room to ask which repository to
+                  read, so a connected integration is retargeted here instead. */}
+              {connection.status === 'CONNECTED' && !isDemoConnection(connection) ? (
+                <form
+                  className="integration-target-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    retarget(connection.id, targetDraft[connection.id] ?? connection.externalAccount ?? '');
+                  }}
+                >
+                  <label htmlFor={`target-${connection.id}`}>
+                    {connection.provider === 'GITHUB' ? 'Repository (owner/name)' : 'Account'}
+                  </label>
+                  <div className="integration-target-row">
+                    <input
+                      id={`target-${connection.id}`}
+                      type="text"
+                      value={targetDraft[connection.id] ?? connection.externalAccount ?? ''}
+                      placeholder={connection.provider === 'GITHUB' ? 'octocat/hello-world' : 'account'}
+                      onChange={(event) =>
+                        setTargetDraft((prev) => ({ ...prev, [connection.id]: event.target.value }))
+                      }
+                    />
+                    <button className="action-btn" type="submit" disabled={busy}>
+                      Save
+                    </button>
+                  </div>
+                </form>
+              ) : null}
 
               <div className="integration-card-actions">
                 {connection.status === 'AVAILABLE' || connection.status === 'DISCONNECTED' ? (

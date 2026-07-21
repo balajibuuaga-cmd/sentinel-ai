@@ -229,6 +229,11 @@ export const api = {
     }),
   syncIntegration: (id: number) =>
     request<IntegrationConnection>(`/api/integration-connections/${id}/sync`, { method: 'POST' }),
+  updateIntegrationAccount: (id: number, externalAccount: string) =>
+    request<IntegrationConnection>(`/api/integration-connections/${id}/account`, {
+      method: 'PUT',
+      body: JSON.stringify({ externalAccount }),
+    }),
   disconnectIntegration: (id: number) =>
     request<IntegrationConnection>(`/api/integration-connections/${id}`, { method: 'DELETE' }),
   backgroundJobs: () => request<BackgroundJob[]>('/api/jobs'),

@@ -221,6 +221,10 @@ public class IntegrationConnectionService {
     public IntegrationConnection disconnect(long id) {
         IntegrationConnection connection = repository.findByIdAndTenantId(id, tenantContext.tenantId())
                 .orElseThrow(() -> new IllegalArgumentException("Integration not found: " + id));
+        // Destroy the credential rather than leaving it encrypted in the vault.
+        // Disconnecting is how a user revokes access, so the token must not
+        // outlive it; a later reconnect stores a fresh one.
+        tokenVault.purge(connection.getTokenSecretRef());
         connection.disconnect();
         IntegrationConnection saved = repository.save(connection);
         audit("INTEGRATION_DISCONNECTED", connection.getProvider().name(), "Disconnected " + connection.getDisplayName() + ".");

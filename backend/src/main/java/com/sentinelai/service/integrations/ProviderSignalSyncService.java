@@ -53,17 +53,25 @@ public class ProviderSignalSyncService {
         this.ciRunsUrl = ciRunsUrl;
     }
 
+    /**
+     * A live sync needs a token the vault can actually hand back. The secret ref
+     * cannot answer that: {@code IntegrationTokenVault.store} derives it from
+     * tenant and provider, so it is identical to the placeholder every
+     * never-connected integration carries. Checking the ref's prefix therefore
+     * reported demo connections as syncable, and the sync failed with a raw
+     * "Unable to decrypt integration token" instead of saying it was never
+     * connected.
+     */
     public boolean canSyncLive(IntegrationConnection connection) {
         return realExchangeEnabled
-                && connection.getTokenSecretRef() != null
-                && connection.getTokenSecretRef().startsWith("db/encrypted/");
+                && tokenVault.usableAccessToken(connection.getTokenSecretRef()).isPresent();
     }
 
     public Optional<ProviderSyncResult> sync(IntegrationConnection connection) {
-        if (!canSyncLive(connection)) {
+        if (!realExchangeEnabled) {
             return Optional.empty();
         }
-        String token = tokenVault.accessToken(connection.getTokenSecretRef()).orElse("");
+        String token = tokenVault.usableAccessToken(connection.getTokenSecretRef()).orElse("");
         if (token.isBlank()) {
             return Optional.empty();
         }

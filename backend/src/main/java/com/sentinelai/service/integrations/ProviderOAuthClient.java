@@ -78,6 +78,15 @@ public class ProviderOAuthClient {
         return realExchangeEnabled && !isBlank(request.code()) && config(provider).isConfigured();
     }
 
+    /**
+     * Whether sending the browser to this provider's authorize URL can lead to a
+     * completed exchange. False means the Connect action would round-trip to the
+     * provider and come back unable to swap the code for a token.
+     */
+    public boolean canStartOAuth(IntegrationProvider provider) {
+        return realExchangeEnabled && config(provider).isConfigured();
+    }
+
     public IntegrationOAuthResult exchange(IntegrationProvider provider, IntegrationInstallRequest request, String fallbackAccount) {
         ProviderConfig config = config(provider);
         long started = System.nanoTime();

@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import java.time.Instant;
 
@@ -38,6 +39,9 @@ public class IntegrationConnection {
 
     @Column(nullable = false)
     private String installUrl;
+
+    @Transient
+    private boolean oauthAvailable;
 
     @Column(nullable = false)
     private String scopes;
@@ -154,6 +158,21 @@ public class IntegrationConnection {
 
     public String getInstallUrl() {
         return installUrl;
+    }
+
+    /**
+     * Whether the browser should be sent through the provider's OAuth flow.
+     *
+     * <p>Not derived from installUrl: the authorize endpoint is a constant, so
+     * that URL exists whether or not a client id and secret are configured.
+     * Only the service knows if a real exchange can complete, so it sets this.
+     */
+    public boolean isOauthAvailable() {
+        return oauthAvailable;
+    }
+
+    public void setOauthAvailable(boolean oauthAvailable) {
+        this.oauthAvailable = oauthAvailable;
     }
 
     public String getScopes() {

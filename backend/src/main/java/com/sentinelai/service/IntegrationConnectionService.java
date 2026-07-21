@@ -73,7 +73,19 @@ public class IntegrationConnectionService {
     @Transactional
     public List<IntegrationConnection> findAll() {
         seedAvailableConnections();
-        return repository.findByTenantIdOrderByProviderAsc(tenantContext.tenantId());
+        return repository.findByTenantIdOrderByProviderAsc(tenantContext.tenantId()).stream()
+                .map(this::withOAuthAvailability)
+                .toList();
+    }
+
+    /**
+     * Tells the console whether Connect should send the browser through the
+     * provider's OAuth flow or fall back to a demo registration. Set here rather
+     * than persisted, because it depends on runtime configuration.
+     */
+    private IntegrationConnection withOAuthAvailability(IntegrationConnection connection) {
+        connection.setOauthAvailable(providerOAuthClient.canStartOAuth(connection.getProvider()));
+        return connection;
     }
 
     @Transactional
@@ -127,7 +139,7 @@ public class IntegrationConnectionService {
                         ? "Connected " + provider + " to " + externalAccount + "."
                         : "Registered demo " + provider + " connection for " + externalAccount
                                 + " (no OAuth exchange).");
-        return saved;
+        return withOAuthAvailability(saved);
     }
 
     @Transactional
@@ -196,7 +208,7 @@ public class IntegrationConnectionService {
                 "connectionId", connection.getId(),
                 "status", status
         ));
-        return saved;
+        return withOAuthAvailability(saved);
     }
 
     @Transactional
@@ -214,7 +226,7 @@ public class IntegrationConnectionService {
         if (status == IntegrationSyncStatus.FAILED) {
             throw new IllegalStateException(detail);
         }
-        return saved;
+        return withOAuthAvailability(saved);
     }
 
     @Transactional
@@ -228,7 +240,7 @@ public class IntegrationConnectionService {
         connection.disconnect();
         IntegrationConnection saved = repository.save(connection);
         audit("INTEGRATION_DISCONNECTED", connection.getProvider().name(), "Disconnected " + connection.getDisplayName() + ".");
-        return saved;
+        return withOAuthAvailability(saved);
     }
 
     @Transactional(readOnly = true)

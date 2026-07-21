@@ -356,6 +356,8 @@ export interface IntegrationConnection {
   status: IntegrationStatus;
   displayName: string;
   installUrl: string;
+  /** True when the provider is configured well enough for a real OAuth exchange. */
+  oauthAvailable: boolean;
   scopes: string;
   tokenSecretRef: string;
   externalAccount: string | null;

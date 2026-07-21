@@ -71,6 +71,18 @@ export default function Integrations() {
   }, []);
 
   async function connect(provider: IntegrationProvider) {
+    const connection = connections.find((c) => c.provider === provider);
+
+    // With provider credentials configured, connecting means sending the browser
+    // to the provider to authorize. Posting the install directly skips that, so
+    // no authorization code ever comes back and the backend can only register a
+    // demo connection. The callback handler in App.tsx completes the install
+    // once the provider redirects back with a code.
+    if (connection?.oauthAvailable && connection.installUrl) {
+      window.location.assign(connection.installUrl);
+      return;
+    }
+
     setBusyId('install');
     setError(null);
     try {

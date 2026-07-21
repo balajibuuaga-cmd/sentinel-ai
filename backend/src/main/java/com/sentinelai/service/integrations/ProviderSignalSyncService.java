@@ -67,6 +67,28 @@ public class ProviderSignalSyncService {
                 && tokenVault.usableAccessToken(connection.getTokenSecretRef()).isPresent();
     }
 
+    /**
+     * Asks the provider whether the stored credential still works, without
+     * ingesting anything.
+     *
+     * <p>Returns empty when no probe exists for the provider, so a caller reports
+     * nothing rather than assuming health it did not verify. Only GitHub has a
+     * cheap endpoint wired up here; the others would need a real call each, and
+     * inventing a verdict for them is the behaviour this replaced.
+     */
+    public Optional<Boolean> checkReachable(IntegrationConnection connection) {
+        String token = tokenVault.usableAccessToken(connection.getTokenSecretRef()).orElse("");
+        if (token.isBlank() || connection.getProvider() != IntegrationProvider.GITHUB) {
+            return Optional.empty();
+        }
+        try {
+            getJson("https://api.github.com/user", token);
+            return Optional.of(true);
+        } catch (Exception ex) {
+            return Optional.of(false);
+        }
+    }
+
     public Optional<ProviderSyncResult> sync(IntegrationConnection connection) {
         if (!realExchangeEnabled) {
             return Optional.empty();

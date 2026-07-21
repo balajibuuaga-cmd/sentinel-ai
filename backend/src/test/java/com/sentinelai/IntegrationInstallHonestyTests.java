@@ -138,4 +138,30 @@ class IntegrationInstallHonestyTests {
         assertThat(updated.get("externalAccount").asText()).isEqualTo("octocat/hello-world");
         assertThat(updated.get("status").asText()).isEqualTo("CONNECTED");
     }
+
+    @Test
+    void syncingWithoutALiveConnectionReportsNothingFetched() throws Exception {
+        String token = login();
+        JsonNode connection = install(token, "CI");
+        long id = connection.get("id").asLong();
+
+        MvcResult result = mockMvc.perform(post("/api/integration-connections/" + id + "/sync")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode synced = objectMapper.readTree(result.getResponse().getContentAsString());
+        // This used to hash tenant and provider into a status and record count and
+        // announce "Latest sync completed successfully".
+        assertThat(synced.get("statusDetail").asText())
+                .doesNotContain("Latest sync completed successfully")
+                .containsIgnoringCase("nothing was fetched");
+        assertThat(synced.get("healthScore").asInt()).isZero();
+
+        JsonNode history = getJson("/api/integration-connections/sync-history", token);
+        JsonNode latest = history.get(0);
+        assertThat(latest.get("status").asText()).isNotEqualTo("SUCCESS");
+        assertThat(latest.get("recordsInspected").asInt()).isZero();
+        assertThat(latest.get("latencyMs").asInt()).isZero();
+    }
 }

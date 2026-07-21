@@ -134,7 +134,12 @@ class SentinelAiApplicationTests {
 
         JsonNode syncedConnection = postJson("/api/integration-connections/" + githubConnection.get("id").asLong() + "/sync", token, Map.of());
         assertThat(syncedConnection.get("lastSyncAt").asText()).isNotBlank();
-        assertThat(syncedConnection.get("healthScore").asInt()).isGreaterThan(0);
+        // No provider credentials are configured in this suite, so this sync
+        // reached nothing and reports a health score of zero. It asserted a score
+        // above zero while the code hashed tenant and provider into an invented
+        // one, so the assertion passed on fabricated data.
+        assertThat(syncedConnection.get("healthScore").asInt()).isZero();
+        assertThat(syncedConnection.get("statusDetail").asText()).containsIgnoringCase("nothing was fetched");
 
         JsonNode syncHistory = getJson("/api/integration-connections/sync-history", token);
         assertThat(syncHistory).hasSizeGreaterThan(0);

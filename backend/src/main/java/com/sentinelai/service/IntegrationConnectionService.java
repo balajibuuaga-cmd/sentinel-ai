@@ -28,6 +28,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class IntegrationConnectionService {
@@ -188,25 +189,21 @@ public class IntegrationConnectionService {
                 return saved;
             }
         }
-        operationalMetrics.providerSyncAttempt(connection.getProvider(), "simulated");
-        IntegrationSyncStatus status = syntheticStatus(connection);
-        int healthScore = status == IntegrationSyncStatus.SUCCESS ? 98 : status == IntegrationSyncStatus.DEGRADED ? 68 : 35;
-        String detail = status == IntegrationSyncStatus.SUCCESS
-                ? "Latest sync completed successfully."
-                : status == IntegrationSyncStatus.DEGRADED
-                ? "Sync completed with delayed provider responses."
-                : "Sync failed. Token, scopes, or provider availability needs review.";
-        connection.sync(status, healthScore, detail);
+        // Nothing was fetched, so nothing can be reported as fetched. This branch
+        // used to hash the tenant and provider into a status and a record count
+        // and announce "Latest sync completed successfully", which put green rows
+        // describing work that never happened into the same history as real ones.
+        operationalMetrics.providerSyncAttempt(connection.getProvider(), "unavailable");
+        String detail = "No live provider connection, so nothing was fetched. "
+                + "Connect this integration to sync real data.";
+        connection.sync(IntegrationSyncStatus.DEGRADED, 0, detail);
         IntegrationConnection saved = repository.save(connection);
-        recordSync(saved, status, syntheticRecords(connection), syntheticLatency(connection), healthScore, detail);
-        if (status == IntegrationSyncStatus.FAILED) {
-            backgroundJobQueueService.enqueueProviderSyncRetry(saved, detail);
-        }
-        audit("INTEGRATION_SYNCED", connection.getProvider().name(), "Synced " + connection.getDisplayName() + ".");
-        operationalEventLogger.info("integration.simulated_sync_completed", java.util.Map.of(
+        recordSync(saved, IntegrationSyncStatus.DEGRADED, 0, 0, 0, detail);
+        audit("INTEGRATION_SYNC_UNAVAILABLE", connection.getProvider().name(),
+                "Sync requested for " + connection.getDisplayName() + " with no live connection.");
+        operationalEventLogger.info("integration.sync_unavailable", java.util.Map.of(
                 "provider", connection.getProvider(),
-                "connectionId", connection.getId(),
-                "status", status
+                "connectionId", connection.getId()
         ));
         return withOAuthAvailability(saved);
     }
@@ -216,17 +213,41 @@ public class IntegrationConnectionService {
         IntegrationConnection connection = repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Integration not found: " + id));
         operationalMetrics.providerSyncAttempt(connection.getProvider(), "job");
-        IntegrationSyncStatus status = syntheticStatus(connection);
-        int healthScore = status == IntegrationSyncStatus.SUCCESS ? 96 : status == IntegrationSyncStatus.DEGRADED ? 72 : 40;
-        String detail = "Background job provider sync " + status.name().toLowerCase(Locale.US).replace("_", " ") + ".";
-        connection.sync(status, healthScore, detail);
-        IntegrationConnection saved = repository.save(connection);
-        recordSync(saved, status, syntheticRecords(connection), syntheticLatency(connection), healthScore, detail);
-        auditForTenant(saved.getTenantId(), saved.getOrganizationName(), "BACKGROUND_PROVIDER_SYNC", saved.getProvider().name(), detail);
-        if (status == IntegrationSyncStatus.FAILED) {
-            throw new IllegalStateException(detail);
+        // Retries only mean something against a live connection. Without one this
+        // reported a hash-derived status and record count as a completed
+        // background sync, which is where the "75 records" rows came from.
+        if (!providerSignalSyncService.canSyncLive(connection)) {
+            String unavailable = "No live provider connection, so the background sync fetched nothing.";
+            connection.sync(IntegrationSyncStatus.DEGRADED, 0, unavailable);
+            IntegrationConnection skipped = repository.save(connection);
+            recordSync(skipped, IntegrationSyncStatus.DEGRADED, 0, 0, 0, unavailable);
+            auditForTenant(skipped.getTenantId(), skipped.getOrganizationName(),
+                    "BACKGROUND_PROVIDER_SYNC_SKIPPED", skipped.getProvider().name(), unavailable);
+            return withOAuthAvailability(skipped);
         }
-        return withOAuthAvailability(saved);
+
+        long started = System.nanoTime();
+        try {
+            ProviderSyncResult result = providerSignalSyncService.sync(connection)
+                    .orElseThrow(() -> new IllegalStateException("Live sync produced no result."));
+            int latencyMs = (int) ((System.nanoTime() - started) / 1_000_000);
+            connection.sync(IntegrationSyncStatus.SUCCESS, 100, result.detail());
+            IntegrationConnection saved = repository.save(connection);
+            recordSync(saved, IntegrationSyncStatus.SUCCESS, result.recordsInspected(), latencyMs, 100, result.detail());
+            auditForTenant(saved.getTenantId(), saved.getOrganizationName(),
+                    "BACKGROUND_PROVIDER_SYNC", saved.getProvider().name(), result.detail());
+            return withOAuthAvailability(saved);
+        } catch (RuntimeException ex) {
+            int latencyMs = (int) ((System.nanoTime() - started) / 1_000_000);
+            String failure = ex.getMessage() == null ? "Background provider sync failed." : ex.getMessage();
+            operationalMetrics.providerSyncFailure(connection.getProvider(), "UNKNOWN");
+            connection.sync(IntegrationSyncStatus.FAILED, 35, failure);
+            IntegrationConnection saved = repository.save(connection);
+            recordSync(saved, IntegrationSyncStatus.FAILED, 0, latencyMs, 35, failure);
+            auditForTenant(saved.getTenantId(), saved.getOrganizationName(),
+                    "BACKGROUND_PROVIDER_SYNC_FAILED", saved.getProvider().name(), failure);
+            throw new IllegalStateException(failure, ex);
+        }
     }
 
     /**
@@ -282,12 +303,42 @@ public class IntegrationConnectionService {
             return;
         }
         repository.findByStatus(com.sentinelai.model.IntegrationStatus.CONNECTED).forEach(connection -> {
-            IntegrationSyncStatus status = syntheticStatus(connection);
-            int healthScore = status == IntegrationSyncStatus.SUCCESS ? 96 : status == IntegrationSyncStatus.DEGRADED ? 72 : 40;
-            String detail = "Scheduled health check " + status.name().toLowerCase(Locale.US).replace("_", " ") + ".";
-            connection.sync(status, healthScore, detail);
-            IntegrationConnection saved = repository.save(connection);
-            recordSync(saved, status, syntheticRecords(connection), syntheticLatency(connection), healthScore, detail);
+            // Only a connection holding a usable token can be checked. Anything
+            // else would need its status invented, which is what this job used to
+            // do: it hashed tenant, provider and the hour into a status, emitting
+            // FAILED one time in twenty and DEGRADED three, then wrote a record
+            // count and latency derived from the same hash. Integrations that had
+            // never been contacted accumulated green history and occasional
+            // failures, and once a real GitHub sync existed those invented rows
+            // sat alongside it indistinguishable at a glance.
+            if (!providerSignalSyncService.canSyncLive(connection)) {
+                return;
+            }
+            long started = System.nanoTime();
+            try {
+                // Empty means no probe exists for this provider, so there is
+                // nothing verified to report and the connection is left alone.
+                Optional<Boolean> probe = providerSignalSyncService.checkReachable(connection);
+                if (probe.isEmpty()) {
+                    return;
+                }
+                boolean reachable = probe.get();
+                int latencyMs = (int) ((System.nanoTime() - started) / 1_000_000);
+                IntegrationSyncStatus status = reachable ? IntegrationSyncStatus.SUCCESS : IntegrationSyncStatus.FAILED;
+                String detail = reachable
+                        ? "Provider reachable and credential accepted."
+                        : "Provider rejected the stored credential. Reconnect this integration.";
+                connection.sync(status, reachable ? 100 : 0, detail);
+                IntegrationConnection saved = repository.save(connection);
+                // Zero records: this checks the credential, it does not ingest.
+                recordSync(saved, status, 0, latencyMs, reachable ? 100 : 0, detail);
+            } catch (RuntimeException ex) {
+                int latencyMs = (int) ((System.nanoTime() - started) / 1_000_000);
+                String detail = "Health check could not reach the provider: " + ex.getMessage();
+                connection.sync(IntegrationSyncStatus.DEGRADED, 50, detail);
+                IntegrationConnection saved = repository.save(connection);
+                recordSync(saved, IntegrationSyncStatus.DEGRADED, 0, latencyMs, 50, detail);
+            }
         });
     }
 
@@ -349,24 +400,8 @@ public class IntegrationConnectionService {
         };
     }
 
-    private IntegrationSyncStatus syntheticStatus(IntegrationConnection connection) {
-        int signal = Math.abs((connection.getTenantId() + connection.getProvider().name() + Instant.now().getEpochSecond() / 3600).hashCode()) % 20;
-        if (signal == 0) {
-            return IntegrationSyncStatus.FAILED;
-        }
-        if (signal <= 3) {
-            return IntegrationSyncStatus.DEGRADED;
-        }
-        return IntegrationSyncStatus.SUCCESS;
-    }
 
-    private int syntheticRecords(IntegrationConnection connection) {
-        return 12 + Math.abs((connection.getTenantId() + connection.getProvider()).hashCode()) % 90;
-    }
 
-    private int syntheticLatency(IntegrationConnection connection) {
-        return 180 + Math.abs((connection.getProvider().name() + connection.getTenantId()).hashCode()) % 900;
-    }
 
     private void recordSync(
             IntegrationConnection connection,

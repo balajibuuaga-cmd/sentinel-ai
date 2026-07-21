@@ -38,7 +38,10 @@ public class WebhookDelivery {
     @Column(nullable = false)
     private WebhookDeliveryStatus status;
 
-    @Column(nullable = false, length = 6000)
+    // Unbounded: GitHub's pull_request and push payloads run to tens of
+    // kilobytes, and the replay feature re-sends this exact body, so a truncated
+    // copy would no longer verify against its signature.
+    @Column(nullable = false, columnDefinition = "text")
     private String payload;
 
     @Column(nullable = false)

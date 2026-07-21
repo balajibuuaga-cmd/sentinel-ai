@@ -149,6 +149,41 @@ class GitHubNativeWebhookTests {
     }
 
     @Test
+    void aFullSizeGitHubPayloadIsStored() throws Exception {
+        // The trimmed fixtures above are why the column length was missed: it was
+        // varchar(6000), sized against Sentinel's own hand-rolled shape, while
+        // GitHub's real pull_request event carries the whole repository, pull
+        // request and sender objects. Deliveries failed on insert with SQLSTATE
+        // 22001 before the event was processed at all.
+        //
+        // Note what this test does NOT do. Removing the widening migration and
+        // restoring length=6000 leaves it passing, because H2 does not enforce
+        // varchar length the way PostgreSQL does. It exercises the full-size path
+        // and guards the translator against large bodies, but the column
+        // constraint itself is only provable against PostgreSQL. The evidence for
+        // that fix is the production log and a real GitHub delivery, not this.
+        String filler = "x".repeat(20_000);
+        String body = """
+                {
+                  "action": "opened",
+                  "repository": {
+                    "full_name": "balajibuuaga-cmd/sentinel-ai",
+                    "default_branch": "main",
+                    "owner": {"login": "balajibuuaga-cmd"},
+                    "description": "%s"
+                  },
+                  "pull_request": {"title": "Big payload", "head": {"sha": "deadbeef"}},
+                  "sender": {"login": "balajibuuaga-cmd"}
+                }
+                """.formatted(filler);
+        assertThat(body.length()).isGreaterThan(6000);
+
+        JsonNode deployment = postEvent("pull_request", body, status().isOk());
+
+        assertThat(deployment.get("commitSha").asText()).isEqualTo("deadbeef");
+    }
+
+    @Test
     void anUnsignedRequestIsRejected() throws Exception {
         mockMvc.perform(post("/api/webhooks/github")
                         .header("X-GitHub-Event", "push")

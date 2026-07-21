@@ -10,14 +10,32 @@ import org.springframework.web.servlet.view.RedirectView;
 @Controller
 public class IntegrationOAuthCallbackController {
 
+    /**
+     * Providers redirect here with the authorization code.
+     *
+     * <p>The provider arrives as a String rather than the enum because the
+     * configured redirect URIs spell it in lower case, and Spring's enum binding
+     * is case-sensitive: binding straight to {@link IntegrationProvider} answered
+     * GitHub's redirect with 400 and left the user on a blank page. An unknown
+     * provider redirects to the console with an error instead of failing the
+     * request, since the user has just come back from an external site and needs
+     * to land somewhere.
+     */
     @GetMapping("/integrations/{provider}/callback")
     public RedirectView callback(
-            @PathVariable IntegrationProvider provider,
+            @PathVariable String provider,
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String error
     ) {
-        StringBuilder redirect = new StringBuilder("/?integrationProvider=").append(provider.name());
+        IntegrationProvider resolved;
+        try {
+            resolved = IntegrationProvider.valueOf(provider.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return new RedirectView("/?integrationError=" + url("unknown_provider"));
+        }
+
+        StringBuilder redirect = new StringBuilder("/?integrationProvider=").append(resolved.name());
         if (code != null && !code.isBlank()) {
             redirect.append("&code=").append(url(code));
         }

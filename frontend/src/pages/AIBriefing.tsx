@@ -30,6 +30,9 @@ function buildSnapshot(briefing: ExecutiveBriefing, deployments: Deployment[], i
   };
 }
 
+// Enough to read without scrolling the page away from the summary.
+const EVENTS_PER_PAGE = 8;
+
 const KIND_LABEL: Record<BriefingEventKind, string> = {
   DEPLOYMENT: 'Deployment',
   INCIDENT_OPENED: 'Incident',
@@ -58,6 +61,7 @@ export default function AIBriefing() {
   const [error, setError] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<BriefingEvent[]>([]);
   const [kindFilter, setKindFilter] = useState<BriefingEventKind | 'ALL'>('ALL');
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,7 +101,13 @@ export default function AIBriefing() {
           ? event.kind === 'PR_REVIEW' || event.kind === 'PR_DECISION'
           : event.kind === kindFilter,
       );
-  const visibleDays = groupBriefingEventsByDay(filtered);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / EVENTS_PER_PAGE));
+  // Clamp rather than store a corrected page: filtering to a smaller set can
+  // leave the current page past the end.
+  const currentPage = Math.min(page, pageCount - 1);
+  const start = currentPage * EVENTS_PER_PAGE;
+  const pageEvents = filtered.slice(start, start + EVENTS_PER_PAGE);
+  const visibleDays = groupBriefingEventsByDay(pageEvents);
 
   return (
     <div className="ai-briefing-page">
@@ -162,7 +172,10 @@ export default function AIBriefing() {
               <button
                 key={kind}
                 className={`briefing-filter${kindFilter === kind ? ' active' : ''}`}
-                onClick={() => setKindFilter(kind)}
+                onClick={() => {
+                  setKindFilter(kind);
+                  setPage(0);
+                }}
               >
                 {kind === 'ALL' ? `All ${timeline.length}` : KIND_LABEL[kind]}
               </button>
@@ -206,6 +219,28 @@ export default function AIBriefing() {
             </section>
           ))
         )}
+
+        {filtered.length > EVENTS_PER_PAGE ? (
+          <div className="briefing-pager">
+            <button
+              className="briefing-pager-btn"
+              onClick={() => setPage(currentPage - 1)}
+              disabled={currentPage === 0}
+            >
+              Previous
+            </button>
+            <span className="briefing-pager-status">
+              {start + 1}&ndash;{Math.min(start + EVENTS_PER_PAGE, filtered.length)} of {filtered.length}
+            </span>
+            <button
+              className="briefing-pager-btn"
+              onClick={() => setPage(currentPage + 1)}
+              disabled={currentPage >= pageCount - 1}
+            >
+              Next
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

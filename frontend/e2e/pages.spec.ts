@@ -241,4 +241,45 @@ test.describe('ai briefing', () => {
 
     expect(topBarGreeting).toContain(heroGreeting.replace('.', '').trim());
   });
+
+  test('the log is paginated rather than one long scroll', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/briefing');
+    await expect(page.locator('.briefing-event').first()).toBeVisible({ timeout: 20_000 });
+
+    const shown = await page.locator('.briefing-event').count();
+    expect(shown).toBeLessThanOrEqual(8);
+
+    const pager = page.locator('.briefing-pager');
+    if ((await pager.count()) === 0) {
+      // Fewer events than one page: no controls should be offered.
+      return;
+    }
+
+    await expect(page.getByRole('button', { name: 'Previous' })).toBeDisabled();
+    // Titles repeat across entries (several "Login Success" in a row), so the
+    // range indicator is what actually distinguishes one page from the next.
+    const firstRange = await page.locator('.briefing-pager-status').innerText();
+
+    await page.getByRole('button', { name: 'Next' }).click();
+
+    await expect(page.getByRole('button', { name: 'Previous' })).toBeEnabled();
+    expect(await page.locator('.briefing-pager-status').innerText()).not.toBe(firstRange);
+  });
+
+  test('changing the filter returns to the first page', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/briefing');
+    await expect(page.locator('.briefing-event').first()).toBeVisible({ timeout: 20_000 });
+
+    if ((await page.locator('.briefing-pager').count()) === 0) {
+      return;
+    }
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByRole('button', { name: 'Previous' })).toBeEnabled();
+
+    // Filtering to a smaller set must not strand the reader on a page past its end.
+    await page.locator('.briefing-filter', { hasText: /^Deployment$/ }).click();
+    await expect(page.locator('.briefing-event').first()).toBeVisible();
+  });
 });

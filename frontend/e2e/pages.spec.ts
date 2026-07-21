@@ -202,3 +202,43 @@ test.describe('deployments list', () => {
     await expect(rows.nth(1)).toHaveAttribute('aria-expanded', 'true');
   });
 });
+
+// The briefing summarised the day in five tiles and a paragraph. It never said
+// what actually happened, which is what a briefing is for.
+test.describe('ai briefing', () => {
+  test('lists individual events, not just a summary', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/briefing');
+
+    await expect(page.getByText('Everything that happened')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.briefing-event').first()).toBeVisible();
+    // Each entry carries its own detail rather than a single rolled-up figure.
+    await expect(page.locator('.briefing-fact').first()).toBeVisible();
+  });
+
+  test('filtering narrows the account to one kind of event', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/briefing');
+    await expect(page.locator('.briefing-event').first()).toBeVisible({ timeout: 20_000 });
+
+    const total = await page.locator('.briefing-event').count();
+    await page.locator('.briefing-filter', { hasText: /^Deployment$/ }).click();
+
+    const deploymentsOnly = await page.locator('.briefing-event').count();
+    expect(deploymentsOnly).toBeLessThanOrEqual(total);
+    expect(await page.locator('.briefing-kind:not(.kind-deployment)').count()).toBe(0);
+  });
+
+  // The top bar computed its greeting from the browser clock while the briefing
+  // rendered the server's, so a reader in US Central saw "Good Morning" above
+  // "Good afternoon." from a UTC server.
+  test('the greeting matches the one in the top bar', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/briefing');
+
+    const heroGreeting = await page.locator('.ai-briefing-hero h1').innerText();
+    const topBarGreeting = await page.locator('.topbar-greeting h1').innerText();
+
+    expect(topBarGreeting).toContain(heroGreeting.replace('.', '').trim());
+  });
+});

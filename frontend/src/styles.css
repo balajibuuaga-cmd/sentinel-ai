@@ -4398,3 +4398,170 @@
   font-size: 11px;
   color: var(--text-dim);
 }
+
+/* ---------------------------------------------------------------- *
+ * AI Briefing: the full account, event by event
+ * ---------------------------------------------------------------- */
+
+.briefing-log {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.briefing-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.briefing-filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.briefing-filter {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.briefing-filter:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.briefing-filter.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.briefing-day + .briefing-day {
+  margin-top: 6px;
+}
+
+.briefing-day-heading {
+  margin: 0 0 10px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.briefing-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.briefing-event {
+  display: flex;
+  gap: 14px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--text-dim);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.briefing-event.sev-critical { border-left-color: var(--red); }
+.briefing-event.sev-high { border-left-color: var(--amber); }
+.briefing-event.sev-medium { border-left-color: var(--cyan); }
+.briefing-event.sev-low { border-left-color: var(--green); }
+
+.briefing-event-time {
+  flex-shrink: 0;
+  width: 62px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding-top: 2px;
+}
+
+.briefing-event-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.briefing-event-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.briefing-kind {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-dim);
+}
+
+.briefing-kind.kind-deployment { background: rgba(79, 140, 255, 0.14); color: var(--blue, #4f8cff); }
+.briefing-kind.kind-incident_opened { background: rgba(251, 77, 106, 0.14); color: var(--red); }
+.briefing-kind.kind-incident_resolved { background: rgba(52, 211, 153, 0.14); color: var(--green); }
+.briefing-kind.kind-pr_review,
+.briefing-kind.kind-pr_decision { background: rgba(60, 214, 224, 0.13); color: var(--cyan); }
+
+.briefing-event-title {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.briefing-event-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.briefing-event-detail {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.briefing-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.briefing-fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 11px;
+}
+
+.briefing-fact-label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}

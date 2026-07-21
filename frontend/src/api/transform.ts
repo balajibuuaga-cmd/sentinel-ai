@@ -7,6 +7,7 @@ import type {
   ExecutiveBriefing,
   Incident,
   OperatorConsole,
+  PullRequestReview,
   RiskLevel,
 } from './types';
 import type { ServiceEdge, ServiceNode, ServiceStatus } from '../types/dashboard';
@@ -30,9 +31,19 @@ export function humanize(value: string): string {
     .join(' ');
 }
 
+// One source of truth for the greeting, computed from the reader's clock.
+// The briefing page rendered the server's greeting while the top bar computed
+// its own, so a user in US Central at 08:00 saw "Good Morning, Admin" above
+// "Good afternoon." from a server running UTC.
+export function localGreeting(now: Date = new Date()): string {
+  const hour = now.getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 18) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
 export function buildHeaderStats(auth: AuthResponse) {
-  const hour = new Date().getHours();
-  const timeGreeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+  const timeGreeting = localGreeting();
   const localPart = auth.username.split('@')[0];
   const fullName = localPart
     .split(/[._-]/)
@@ -482,4 +493,194 @@ function classifyAction(action: string): { tone: 'red' | 'blue' | 'amber' | 'gre
   if (action.includes('DEPLOY') || action.includes('WEBHOOK')) return { tone: 'blue', icon: 'rocket' };
   if (action.includes('INCIDENT') || action.includes('SIGNAL')) return { tone: 'amber', icon: 'file-warning' };
   return { tone: 'green', icon: 'undo' };
+}
+
+// The briefing summarised the day in five tiles and a paragraph, which answers
+// "how did we do" but never "what actually happened". These merge every recorded
+// event into one chronological account: each deployment with its score and
+// reasoning, each incident opened and resolved, each pull request reviewed and
+// decided, and each audited action.
+export type BriefingEventKind =
+  | 'DEPLOYMENT'
+  | 'INCIDENT_OPENED'
+  | 'INCIDENT_RESOLVED'
+  | 'PR_REVIEW'
+  | 'PR_DECISION'
+  | 'AUDIT';
+
+export interface BriefingEvent {
+  key: string;
+  at: string;
+  kind: BriefingEventKind;
+  title: string;
+  subtitle: string;
+  detail: string;
+  /** Short labelled facts rendered as chips, e.g. risk score or environment. */
+  facts: { label: string; value: string }[];
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'neutral';
+}
+
+function severityFromLevel(level: RiskLevel | undefined): BriefingEvent['severity'] {
+  if (!level) return 'neutral';
+  return level.toLowerCase() as BriefingEvent['severity'];
+}
+
+// Audited actions that the timeline already renders from their own records.
+const AUDIT_ACTIONS_COVERED_ELSEWHERE = new Set([
+  'INCIDENT_OPENED',
+  'INCIDENT_REMEDIATION_STEP',
+]);
+
+/**
+ * Audit details carry correlation ids for log tracing. They belong in the
+ * operator console, not in a narrative account of the day.
+ */
+function stripInternalIds(details: string): string {
+  return details.replace(/\s*requestId=\S+/g, '').trim();
+}
+
+export function buildBriefingTimeline(
+  deployments: Deployment[],
+  incidents: Incident[],
+  reviews: PullRequestReview[],
+  auditEvents: AuditEvent[],
+): BriefingEvent[] {
+  const events: BriefingEvent[] = [];
+
+  deployments.forEach((deployment) => {
+    const risk = deployment.riskAssessment;
+    events.push({
+      key: `deployment-${deployment.id}`,
+      at: deployment.createdAt,
+      kind: 'DEPLOYMENT',
+      title: `${deployment.serviceName} deployment assessed`,
+      subtitle: deployment.pullRequestTitle || deployment.deploymentKey,
+      detail: risk?.aiExplanation ?? 'This deployment has not been assessed yet.',
+      facts: [
+        { label: 'Risk', value: risk ? `${risk.score}% ${risk.level}` : 'not assessed' },
+        { label: 'Environment', value: deployment.environment },
+        { label: 'Status', value: humanize(deployment.status) },
+        { label: 'Team', value: deployment.ownerTeam },
+        ...(deployment.commitSha ? [{ label: 'Commit', value: deployment.commitSha.slice(0, 7) }] : []),
+      ],
+      severity: severityFromLevel(risk?.level),
+    });
+  });
+
+  incidents.forEach((incident) => {
+    events.push({
+      key: `incident-open-${incident.id}`,
+      at: incident.openedAt,
+      kind: 'INCIDENT_OPENED',
+      title: `${incident.severity} incident opened on ${incident.serviceName}`,
+      subtitle: incident.summary,
+      detail: incident.commanderBrief || incident.recommendedAction,
+      facts: [
+        { label: 'Severity', value: incident.severity },
+        { label: 'Risk', value: `${incident.riskScore}%` },
+        { label: 'Affected', value: incident.affectedSystems || 'not recorded' },
+        { label: 'Team', value: incident.ownerTeam },
+      ],
+      severity: incident.severity === 'SEV1' ? 'critical' : incident.severity === 'SEV2' ? 'high' : 'medium',
+    });
+
+    if (incident.resolvedAt) {
+      const minutes = Math.round(
+        (new Date(incident.resolvedAt).getTime() - new Date(incident.openedAt).getTime()) / 60000,
+      );
+      events.push({
+        key: `incident-resolved-${incident.id}`,
+        at: incident.resolvedAt,
+        kind: 'INCIDENT_RESOLVED',
+        title: `${incident.serviceName} incident resolved`,
+        subtitle: incident.incidentKey,
+        detail: incident.recommendedAction,
+        facts: [
+          { label: 'Open for', value: `${minutes}m` },
+          { label: 'Severity', value: incident.severity },
+        ],
+        severity: 'low',
+      });
+    }
+
+    // Each remediation step the responders actually ran.
+    incident.timeline.forEach((step, index) => {
+      events.push({
+        key: `incident-${incident.id}-step-${index}`,
+        at: step.occurredAt,
+        kind: 'AUDIT',
+        title: step.label,
+        subtitle: `${incident.serviceName} · ${incident.incidentKey}`,
+        detail: step.detail,
+        facts: [{ label: 'By', value: step.actor }],
+        severity: 'neutral',
+      });
+    });
+  });
+
+  reviews.forEach((review) => {
+    events.push({
+      key: `review-${review.id}`,
+      at: review.createdAt,
+      kind: 'PR_REVIEW',
+      title: `PR #${review.prNumber} reviewed in ${review.repository}`,
+      subtitle: review.title,
+      detail: review.explanation,
+      facts: [
+        { label: 'Verdict', value: humanize(review.recommendation) },
+        { label: 'Risk', value: `${review.riskScore}%` },
+        { label: 'Author', value: review.author },
+        { label: 'CI', value: review.ciStatus },
+        { label: 'Files', value: String(review.changedFiles.length) },
+      ],
+      severity: review.riskScore >= 70 ? 'high' : review.riskScore >= 40 ? 'medium' : 'low',
+    });
+
+    if (review.decision) {
+      events.push({
+        key: `review-decision-${review.id}`,
+        at: review.createdAt,
+        kind: 'PR_DECISION',
+        title: `PR #${review.prNumber} decision: ${humanize(review.decision)}`,
+        subtitle: review.title,
+        detail: review.decisionNote ?? 'No note was recorded with this decision.',
+        facts: [{ label: 'Repository', value: review.repository }],
+        severity: 'neutral',
+      });
+    }
+  });
+
+  auditEvents.forEach((event) => {
+    // Some actions are audited *and* modelled as first-class events, so
+    // including both reported the same happening twice: an incident showed up as
+    // "Incident Opened" from the audit trail and again as "SEV2 incident opened
+    // on inventory-sync", seconds apart.
+    if (AUDIT_ACTIONS_COVERED_ELSEWHERE.has(event.action)) {
+      return;
+    }
+    events.push({
+      key: `audit-${event.id}`,
+      at: event.createdAt,
+      kind: 'AUDIT',
+      title: humanize(event.action),
+      subtitle: event.target,
+      detail: stripInternalIds(event.details),
+      facts: [{ label: 'By', value: event.actor }],
+      severity: 'neutral',
+    });
+  });
+
+  return events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}
+
+/** Groups the timeline by calendar day, newest day first. */
+export function groupBriefingEventsByDay(events: BriefingEvent[]): { day: string; events: BriefingEvent[] }[] {
+  const byDay = new Map<string, BriefingEvent[]>();
+  events.forEach((event) => {
+    const key = dayKey(event.at);
+    byDay.set(key, [...(byDay.get(key) ?? []), event]);
+  });
+  return [...byDay.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([day, dayEvents]) => ({ day, events: dayEvents }));
 }

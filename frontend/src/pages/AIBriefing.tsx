@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { api } from '../api/client';
+import { buildBriefingTimeline, groupBriefingEventsByDay, localGreeting } from '../api/transform';
+import type { BriefingEvent, BriefingEventKind } from '../api/transform';
 import type { Deployment, ExecutiveBriefing, Incident, PullRequestReview } from '../api/types';
 
 interface Snapshot {
@@ -28,15 +30,48 @@ function buildSnapshot(briefing: ExecutiveBriefing, deployments: Deployment[], i
   };
 }
 
+const KIND_LABEL: Record<BriefingEventKind, string> = {
+  DEPLOYMENT: 'Deployment',
+  INCIDENT_OPENED: 'Incident',
+  INCIDENT_RESOLVED: 'Resolved',
+  PR_REVIEW: 'PR review',
+  PR_DECISION: 'PR decision',
+  AUDIT: 'Activity',
+};
+
+function formatDay(day: string): string {
+  const date = new Date(`${day}T00:00:00`);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (day === today.toISOString().slice(0, 10)) return 'Today';
+  if (day === yesterday.toISOString().slice(0, 10)) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
 export default function AIBriefing() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [timeline, setTimeline] = useState<BriefingEvent[]>([]);
+  const [kindFilter, setKindFilter] = useState<BriefingEventKind | 'ALL'>('ALL');
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.executiveBriefing(), api.deployments(), api.incidents(), api.prReviews()])
-      .then(([briefing, deployments, incidents, reviews]) => {
-        if (!cancelled) setSnapshot(buildSnapshot(briefing, deployments, incidents, reviews));
+    Promise.all([
+      api.executiveBriefing(),
+      api.deployments(),
+      api.incidents(),
+      api.prReviews(),
+      api.auditEvents(),
+    ])
+      .then(([briefing, deployments, incidents, reviews, auditEvents]) => {
+        if (cancelled) return;
+        setSnapshot(buildSnapshot(briefing, deployments, incidents, reviews));
+        setTimeline(buildBriefingTimeline(deployments, incidents, reviews, auditEvents));
       })
       .catch((err) => !cancelled && setError(err instanceof Error ? err.message : 'Failed to load briefing'));
     return () => {
@@ -53,6 +88,16 @@ export default function AIBriefing() {
   }
 
   const savings = snapshot.briefing.metrics.find((m) => m.label === 'Expected savings')?.value ?? '$0';
+  const filtered = kindFilter === 'ALL'
+    ? timeline
+    : timeline.filter((event) =>
+        kindFilter === 'INCIDENT_OPENED'
+          ? event.kind === 'INCIDENT_OPENED' || event.kind === 'INCIDENT_RESOLVED'
+          : kindFilter === 'PR_REVIEW'
+          ? event.kind === 'PR_REVIEW' || event.kind === 'PR_DECISION'
+          : event.kind === kindFilter,
+      );
+  const visibleDays = groupBriefingEventsByDay(filtered);
 
   return (
     <div className="ai-briefing-page">
@@ -60,7 +105,7 @@ export default function AIBriefing() {
         <div className="ai-briefing-icon">
           <Sparkles size={28} />
         </div>
-        <h1>{snapshot.briefing.greeting}</h1>
+        <h1>{localGreeting()}.</h1>
         <p className="ai-briefing-sub">Here is what happened across your engineering organization.</p>
 
         <div className="ai-briefing-stats">
@@ -105,6 +150,62 @@ export default function AIBriefing() {
           <span>Expected savings</span>
           <strong>{savings}</strong>
         </div>
+      </div>
+
+      {/* The summary above answers "how did we do". This answers "what actually
+          happened", event by event, which is what a briefing is for. */}
+      <div className="panel briefing-log">
+        <div className="briefing-log-head">
+          <div className="chart-card-header">Everything that happened</div>
+          <div className="briefing-filter-row">
+            {(['ALL', 'DEPLOYMENT', 'INCIDENT_OPENED', 'PR_REVIEW', 'AUDIT'] as const).map((kind) => (
+              <button
+                key={kind}
+                className={`briefing-filter${kindFilter === kind ? ' active' : ''}`}
+                onClick={() => setKindFilter(kind)}
+              >
+                {kind === 'ALL' ? `All ${timeline.length}` : KIND_LABEL[kind]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {visibleDays.length === 0 ? (
+          <div className="page-empty-state">Nothing has been recorded yet.</div>
+        ) : (
+          visibleDays.map((group) => (
+            <section key={group.day} className="briefing-day">
+              <h3 className="briefing-day-heading">{formatDay(group.day)}</h3>
+              <ol className="briefing-events">
+                {group.events.map((event) => (
+                  <li key={event.key} className={`briefing-event sev-${event.severity}`}>
+                    <div className="briefing-event-time">{formatTime(event.at)}</div>
+                    <div className="briefing-event-body">
+                      <div className="briefing-event-head">
+                        <span className={`briefing-kind kind-${event.kind.toLowerCase()}`}>
+                          {KIND_LABEL[event.kind]}
+                        </span>
+                        <span className="briefing-event-title">{event.title}</span>
+                      </div>
+                      {event.subtitle ? <p className="briefing-event-subtitle">{event.subtitle}</p> : null}
+                      {event.detail ? <p className="briefing-event-detail">{event.detail}</p> : null}
+                      {event.facts.length > 0 ? (
+                        <div className="briefing-facts">
+                          {event.facts.map((fact) => (
+                            <span key={`${event.key}-${fact.label}`} className="briefing-fact">
+                              <span className="briefing-fact-label">{fact.label}</span>
+                              {fact.value}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ))
+        )}
       </div>
     </div>
   );

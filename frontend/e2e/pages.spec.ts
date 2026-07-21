@@ -117,11 +117,12 @@ test.describe('ai copilot', () => {
   });
 });
 
-// The Deployments page only rendered simulations it had just run, held in
-// memory. Anything arriving from a signed GitHub webhook had nowhere to appear,
-// so a working ingestion pipeline looked like nothing was happening.
-test.describe('deployments list', () => {
-  test('the page lists stored deployments, not just this session runs', async ({ page }) => {
+// The page opened on a simulation form pre-filled with a payment-api deployment
+// for a repository nobody owns, and the deployments themselves were a footnote.
+// The list is the page now: pick a deployment, read what happened, simulate from
+// it if you want to.
+test.describe('deployments', () => {
+  test('the page opens on the list of stored deployments', async ({ page }) => {
     await signIn(page);
 
     await Promise.all([
@@ -132,74 +133,54 @@ test.describe('deployments list', () => {
       page.goto('/simulator'),
     ]);
 
-    await expect(page.getByText('Recent Deployments')).toBeVisible({ timeout: 20_000 });
-    // The seeded tenant has deployments, so rows must render without simulating.
-    await expect(page.locator('.simulator-history .operator-row').first()).toBeVisible({
-      timeout: 20_000,
-    });
+    await expect(page.locator('.deployment-row-button').first()).toBeVisible({ timeout: 20_000 });
+    // No form until one is asked for.
+    await expect(page.getByRole('button', { name: 'Run Simulation' })).toHaveCount(0);
   });
 
   test('each deployment says whether it came from GitHub or a simulation', async ({ page }) => {
     await signIn(page);
     await page.goto('/simulator');
-    await expect(page.locator('.simulator-history .operator-row').first()).toBeVisible({
-      timeout: 20_000,
-    });
+    await expect(page.locator('.deployment-row-button').first()).toBeVisible({ timeout: 20_000 });
 
-    const badges = page.locator('.deployment-source');
-    expect(await badges.count()).toBeGreaterThan(0);
-    // Every row is attributed one way or the other.
-    const rows = await page.locator('.simulator-history .operator-row').count();
-    expect(await badges.count()).toBe(Math.min(rows, 12));
+    const rows = await page.locator('.deployment-row-button').count();
+    expect(await page.locator('.deployment-source').count()).toBe(rows);
   });
 
-  // The rows showed a risk score and a status, which invites a click, and were
-  // plain divs with no handler and no detail route behind them.
-  test('selecting a deployment reveals its assessment', async ({ page }) => {
+  test('selecting a deployment shows what happened in it', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/simulator');
+    await page.locator('.deployment-row-button').first().click();
+
+    await expect(page.locator('.deployment-detail-panel')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: /Simulate this deployment/ })).toBeVisible();
+  });
+
+  test('a deployment can be simulated from its own page, pre-filled from it', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/simulator');
+    await page.locator('.deployment-row-button').first().click();
+    await expect(page.locator('.deployment-detail-panel')).toBeVisible({ timeout: 20_000 });
+
+    // Read the service from the opened deployment's own header, not the list
+    // row, whose title also carries the key and the source badge.
+    const service = (await page.locator('.deployment-detail-panel .engineer-form-header').innerText()).trim();
+    await page.getByRole('button', { name: /Simulate this deployment/ }).click();
+
+    // Carried over from the deployment rather than typed again.
+    await expect(page.getByLabel('Service')).toHaveValue(service);
+    await expect(page.getByRole('button', { name: 'Run Simulation' })).toBeVisible();
+  });
+
+  test('a new simulation starts blank rather than pre-filled with invented data', async ({ page }) => {
     await signIn(page);
     await page.goto('/simulator');
 
-    const firstRow = page.locator('.deployment-row-button').first();
-    await expect(firstRow).toBeVisible({ timeout: 20_000 });
-    await expect(firstRow).toHaveAttribute('aria-expanded', 'false');
+    await page.getByRole('button', { name: /New simulation/ }).click();
 
-    await firstRow.click();
-
-    await expect(firstRow).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.locator('.deployment-detail').first()).toBeVisible();
-    await expect(page.getByText('Recommendation').first()).toBeVisible();
-  });
-
-  test('selecting the same deployment again collapses it', async ({ page }) => {
-    await signIn(page);
-    await page.goto('/simulator');
-
-    const firstRow = page.locator('.deployment-row-button').first();
-    await expect(firstRow).toBeVisible({ timeout: 20_000 });
-
-    await firstRow.click();
-    await expect(page.locator('.deployment-detail')).toHaveCount(1);
-
-    await firstRow.click();
-    await expect(page.locator('.deployment-detail')).toHaveCount(0);
-  });
-
-  test('only one deployment is expanded at a time', async ({ page }) => {
-    await signIn(page);
-    await page.goto('/simulator');
-
-    const rows = page.locator('.deployment-row-button');
-    await expect(rows.first()).toBeVisible({ timeout: 20_000 });
-    if ((await rows.count()) < 2) {
-      test.skip(true, 'needs at least two deployments to check exclusivity');
-    }
-
-    await rows.nth(0).click();
-    await rows.nth(1).click();
-
-    await expect(page.locator('.deployment-detail')).toHaveCount(1);
-    await expect(rows.nth(0)).toHaveAttribute('aria-expanded', 'false');
-    await expect(rows.nth(1)).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByLabel('Service')).toHaveValue('');
+    await expect(page.getByLabel('Repository')).toHaveValue('');
+    await expect(page.getByLabel('Owner team')).toHaveValue('');
   });
 });
 

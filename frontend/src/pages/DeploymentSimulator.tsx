@@ -1,24 +1,45 @@
 import { useEffect, useRef, useState } from 'react';
-import { Rocket, GitBranch, Layers, ShieldAlert, Sparkles, ChevronDown } from 'lucide-react';
+import { Rocket, GitBranch, Layers, ShieldAlert, Sparkles, ArrowLeft, Plus } from 'lucide-react';
 import { api } from '../api/client';
 import type { Deployment } from '../api/types';
 
+// A blank form. The page used to open with a filled-in payment-api deployment
+// for a repository nobody owns, which reads as real data until you look.
 const emptyForm = {
   provider: 'github-actions',
-  repository: 'sentinel-ai/payment-api',
-  serviceName: 'payment-api',
-  ownerTeam: 'Payments Platform',
+  repository: '',
+  serviceName: '',
+  ownerTeam: '',
   environment: 'production',
   commitSha: '',
-  pipelineName: 'deploy-production',
+  pipelineName: '',
   buildUrl: '',
   status: 'success',
   failedTests: 0,
   coverageDelta: 0,
   actor: '',
   failedSuites: '',
-  dependencies: 'customer-ledger, fraud-screening',
+  dependencies: '',
 };
+
+type FormState = typeof emptyForm;
+
+/**
+ * Carries over what Sentinel actually recorded for a deployment. Repository is
+ * left blank on purpose: it is not stored on the deployment, and inventing one
+ * from the team and service name would put a repository that may not exist into
+ * a field the sync then tries to read.
+ */
+function formFromDeployment(deployment: Deployment): FormState {
+  return {
+    ...emptyForm,
+    serviceName: deployment.serviceName,
+    ownerTeam: deployment.ownerTeam,
+    environment: deployment.environment,
+    commitSha: deployment.commitSha ?? '',
+    dependencies: deployment.dependencies.join(', '),
+  };
+}
 
 type Stage = 'idle' | 'ingesting' | 'dependencies' | 'risk' | 'recommendation' | 'done';
 
@@ -39,26 +60,31 @@ function deploymentSource(deployment: Deployment): 'GitHub' | 'Simulated' {
   return deployment.deploymentKey.startsWith('GH-') ? 'GitHub' : 'Simulated';
 }
 
+type Mode = 'detail' | 'simulate';
+
 export default function DeploymentSimulator() {
-  const [form, setForm] = useState(emptyForm);
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
+  const [selected, setSelected] = useState<Deployment | null>(null);
+  const [mode, setMode] = useState<Mode>('detail');
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [stage, setStage] = useState<Stage>('idle');
   const [result, setResult] = useState<Deployment | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [history, setHistory] = useState<Deployment[]>([]);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
   const cancelledRef = useRef(false);
 
-  // The page only ever showed simulations it had just run, held in memory, so
-  // deployments arriving from GitHub webhooks had nowhere to appear at all.
   async function loadDeployments() {
     try {
       const all = await api.deployments();
       if (!cancelledRef.current) {
-        setHistory(all);
+        setDeployments(all);
       }
-    } catch {
-      // The simulator still works without the list; leave it empty rather than
-      // blocking the form behind a failed fetch.
+    } catch (err) {
+      if (!cancelledRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to load deployments');
+      }
+    } finally {
+      if (!cancelledRef.current) setLoading(false);
     }
   }
 
@@ -69,6 +95,29 @@ export default function DeploymentSimulator() {
       cancelledRef.current = true;
     };
   }, []);
+
+  function openDeployment(deployment: Deployment) {
+    setSelected(deployment);
+    setMode('detail');
+    setResult(null);
+    setStage('idle');
+    setError(null);
+  }
+
+  function simulateFrom(deployment: Deployment) {
+    setForm(formFromDeployment(deployment));
+    setMode('simulate');
+    setResult(null);
+    setStage('idle');
+  }
+
+  function newSimulation() {
+    setSelected(null);
+    setForm(emptyForm);
+    setMode('simulate');
+    setResult(null);
+    setStage('idle');
+  }
 
   async function runSimulation() {
     if (stage !== 'idle' && stage !== 'done') return;
@@ -107,9 +156,6 @@ export default function DeploymentSimulator() {
       }
       if (cancelledRef.current) return;
       setResult(created);
-      setHistory((prev) => [created, ...prev.filter((d) => d.id !== created.id)]);
-      // Pull the authoritative list back so this simulation sits alongside
-      // anything GitHub delivered while the form was open.
       loadDeployments();
     } catch (err) {
       if (cancelledRef.current) return;
@@ -122,222 +168,280 @@ export default function DeploymentSimulator() {
   const assessment = result?.riskAssessment ?? null;
 
   return (
-    <div className="simulator-page">
-      <div className="panel engineer-form simulator-form">
-        <div className="engineer-form-header">
-          <Rocket size={16} /> Simulate a Deployment
+    <div className="deployments-page">
+      <div className="panel deployments-list-panel">
+        <div className="deployments-list-head">
+          <div className="chart-card-header">Deployments</div>
+          <button className="action-btn" onClick={newSimulation}>
+            <Plus size={14} /> New simulation
+          </button>
         </div>
-        <div className="engineer-form-row">
-          <label>
-            Provider
-            <select value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}>
-              <option value="github-actions">github-actions</option>
-              <option value="circleci">circleci</option>
-              <option value="jenkins">jenkins</option>
-            </select>
-          </label>
-          <label>
-            Status
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="success">success</option>
-              <option value="failure">failure</option>
-            </select>
-          </label>
-        </div>
-        <label>
-          Repository
-          <input value={form.repository} onChange={(e) => setForm({ ...form, repository: e.target.value })} />
-        </label>
-        <div className="engineer-form-row">
-          <label>
-            Service
-            <input value={form.serviceName} onChange={(e) => setForm({ ...form, serviceName: e.target.value })} />
-          </label>
-          <label>
-            Owner team
-            <input value={form.ownerTeam} onChange={(e) => setForm({ ...form, ownerTeam: e.target.value })} />
-          </label>
-        </div>
-        <div className="engineer-form-row">
-          <label>
-            Environment
-            <input value={form.environment} onChange={(e) => setForm({ ...form, environment: e.target.value })} />
-          </label>
-          <label>
-            Pipeline
-            <input value={form.pipelineName} onChange={(e) => setForm({ ...form, pipelineName: e.target.value })} />
-          </label>
-        </div>
-        <div className="engineer-form-row">
-          <label>
-            Failed tests
-            <input
-              type="number"
-              min={0}
-              value={form.failedTests}
-              onChange={(e) => setForm({ ...form, failedTests: Number(e.target.value) })}
-            />
-          </label>
-          <label>
-            Coverage delta (%)
-            <input
-              type="number"
-              value={form.coverageDelta}
-              onChange={(e) => setForm({ ...form, coverageDelta: Number(e.target.value) })}
-            />
-          </label>
-        </div>
-        <label>
-          Dependencies (comma separated)
-          <input value={form.dependencies} onChange={(e) => setForm({ ...form, dependencies: e.target.value })} />
-        </label>
-        <label>
-          Failed test suites (one per line)
-          <textarea
-            rows={2}
-            value={form.failedSuites}
-            onChange={(e) => setForm({ ...form, failedSuites: e.target.value })}
-          />
-        </label>
-        <button className="briefing-cta" onClick={runSimulation} disabled={running}>
-          {running ? stageLabel[stage] : 'Run Simulation'}
-        </button>
-        {error ? <div className="engineer-error">{error}</div> : null}
+
+        {loading ? (
+          <div className="page-empty-state">Loading deployments...</div>
+        ) : deployments.length === 0 ? (
+          <div className="page-empty-state">
+            No deployments yet. Push to a connected repository, or run a simulation.
+          </div>
+        ) : (
+          <div className="operator-list">
+            {deployments.map((d) => (
+              <button
+                key={d.id}
+                className={`operator-row deployment-row-button${selected?.id === d.id ? ' selected' : ''}`}
+                onClick={() => openDeployment(d)}
+              >
+                <span className={`risk-pill risk-${(d.riskAssessment?.level ?? 'low').toLowerCase()}`}>
+                  {d.riskAssessment?.level ?? 'N/A'}
+                </span>
+                <div className="operator-row-body">
+                  <div className="operator-row-title">
+                    {d.serviceName} &middot; {d.deploymentKey}
+                    <span className={`deployment-source source-${deploymentSource(d).toLowerCase()}`}>
+                      {deploymentSource(d)}
+                    </span>
+                  </div>
+                  <div className="operator-row-meta">
+                    {d.riskAssessment?.score ?? 0}% risk &middot; {d.status} &middot; {d.environment}
+                    {d.commitSha ? ` · ${d.commitSha.slice(0, 7)}` : ''}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="simulator-right-col">
-        <div className="panel simulator-pipeline">
-          <div className="engineer-form-header">
-            <Sparkles size={16} /> AI Simulation Pipeline
-          </div>
-          <div className="simulator-stages">
-            {STAGE_ORDER.map((s, i) => {
-              const currentIndex = STAGE_ORDER.indexOf(stage);
-              const reached = stage === 'done' || currentIndex >= i;
-              return (
-                <div key={s} className={`simulator-stage${reached ? ' active' : ''}`}>
-                  <span className="simulator-stage-dot" />
-                  {stageLabel[s]}
+      <div className="deployments-detail-col">
+        {mode === 'detail' && selected ? (
+          <div className="panel deployment-detail-panel">
+            <div className="deployment-detail-head">
+              <div>
+                <div className="engineer-form-header">
+                  <Rocket size={16} /> {selected.serviceName}
                 </div>
-              );
-            })}
+                <div className="operator-row-meta">
+                  {selected.deploymentKey} &middot; {deploymentSource(selected)} &middot;{' '}
+                  {new Date(selected.createdAt).toLocaleString()}
+                </div>
+              </div>
+              <button className="action-btn" onClick={() => simulateFrom(selected)}>
+                <Sparkles size={14} /> Simulate this deployment
+              </button>
+            </div>
+
+            {selected.pullRequestTitle ? (
+              <p className="deployment-detail-title">{selected.pullRequestTitle}</p>
+            ) : null}
+
+            {selected.riskAssessment ? (
+              <>
+                <div className="simulator-result-header">
+                  <span className={`risk-pill risk-${selected.riskAssessment.level.toLowerCase()}`}>
+                    {selected.riskAssessment.level}
+                  </span>
+                  <span className="simulator-result-score">{selected.riskAssessment.score}% risk</span>
+                </div>
+
+                <div className="simulator-result-row">
+                  <GitBranch size={13} /> {selected.environment} &middot; {selected.status}
+                  {selected.commitSha ? ` · ${selected.commitSha.slice(0, 7)}` : ''}
+                </div>
+                <div className="simulator-result-row">
+                  <Layers size={13} /> Dependencies:{' '}
+                  {selected.dependencies.join(', ') || 'none recorded'}
+                </div>
+                <div className="simulator-result-row">
+                  <ShieldAlert size={13} /> {selected.riskAssessment.recommendation}
+                </div>
+
+                <p className="simulator-result-explanation">{selected.riskAssessment.aiExplanation}</p>
+
+                {selected.riskAssessment.reasons.length > 0 ? (
+                  <>
+                    <div className="chart-card-header">Evidence</div>
+                    <ul className="service-detail-list">
+                      {selected.riskAssessment.reasons.map((reason, i) => (
+                        <li key={i}>
+                          <b>[{reason.category}]</b> {reason.evidence}{' '}
+                          <span className="tag">impact {reason.impact}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+
+                <div className="deployment-detail-meta">
+                  Owned by {selected.ownerTeam} &middot; assessed{' '}
+                  {new Date(selected.riskAssessment.assessedAt).toLocaleString()}
+                </div>
+              </>
+            ) : (
+              <div className="page-empty-state">This deployment has not been assessed yet.</div>
+            )}
           </div>
+        ) : mode === 'simulate' ? (
+          <>
+            <div className="panel engineer-form simulator-form">
+              <div className="deployments-list-head">
+                <div className="engineer-form-header">
+                  <Rocket size={16} />
+                  {selected ? `Simulate from ${selected.deploymentKey}` : 'New simulation'}
+                </div>
+                {selected ? (
+                  <button className="action-btn" onClick={() => setMode('detail')}>
+                    <ArrowLeft size={14} /> Back to deployment
+                  </button>
+                ) : null}
+              </div>
 
-          {result && assessment ? (
-            <div className="simulator-result">
-              <div className="simulator-result-header">
-                <span className={`risk-pill risk-${assessment.level.toLowerCase()}`}>{assessment.level}</span>
-                <span className="simulator-result-score">{assessment.score}% risk</span>
+              <div className="engineer-form-row">
+                <label>
+                  Provider
+                  <select value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}>
+                    <option value="github-actions">github-actions</option>
+                    <option value="circleci">circleci</option>
+                    <option value="jenkins">jenkins</option>
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                    <option value="success">success</option>
+                    <option value="failure">failure</option>
+                  </select>
+                </label>
               </div>
-              <div className="simulator-result-row">
-                <GitBranch size={13} /> {result.deploymentKey} &middot; {result.serviceName} &middot; {result.environment}
+              <label>
+                Repository
+                <input
+                  value={form.repository}
+                  placeholder="owner/name"
+                  onChange={(e) => setForm({ ...form, repository: e.target.value })}
+                />
+              </label>
+              <div className="engineer-form-row">
+                <label>
+                  Service
+                  <input
+                    value={form.serviceName}
+                    placeholder="checkout-service"
+                    onChange={(e) => setForm({ ...form, serviceName: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Owner team
+                  <input
+                    value={form.ownerTeam}
+                    placeholder="Team name"
+                    onChange={(e) => setForm({ ...form, ownerTeam: e.target.value })}
+                  />
+                </label>
               </div>
-              <div className="simulator-result-row">
-                <Layers size={13} /> Dependencies: {result.dependencies.join(', ') || 'none recorded'}
+              <div className="engineer-form-row">
+                <label>
+                  Environment
+                  <input value={form.environment} onChange={(e) => setForm({ ...form, environment: e.target.value })} />
+                </label>
+                <label>
+                  Pipeline
+                  <input
+                    value={form.pipelineName}
+                    placeholder="deploy-production"
+                    onChange={(e) => setForm({ ...form, pipelineName: e.target.value })}
+                  />
+                </label>
               </div>
-              <div className="simulator-result-row">
-                <ShieldAlert size={13} /> {assessment.recommendation}
+              <div className="engineer-form-row">
+                <label>
+                  Failed tests
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.failedTests}
+                    onChange={(e) => setForm({ ...form, failedTests: Number(e.target.value) })}
+                  />
+                </label>
+                <label>
+                  Coverage delta (%)
+                  <input
+                    type="number"
+                    value={form.coverageDelta}
+                    onChange={(e) => setForm({ ...form, coverageDelta: Number(e.target.value) })}
+                  />
+                </label>
               </div>
-              <p className="simulator-result-explanation">{assessment.aiExplanation}</p>
-              {assessment.reasons.length > 0 ? (
-                <ul className="service-detail-list">
-                  {assessment.reasons.map((reason, i) => (
-                    <li key={i}>
-                      <b>[{reason.category}]</b> {reason.evidence} <span className="tag">impact {reason.impact}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+              <label>
+                Dependencies (comma separated)
+                <input
+                  value={form.dependencies}
+                  placeholder="customer-ledger, fraud-screening"
+                  onChange={(e) => setForm({ ...form, dependencies: e.target.value })}
+                />
+              </label>
+              <label>
+                Failed test suites (one per line)
+                <textarea
+                  rows={2}
+                  value={form.failedSuites}
+                  onChange={(e) => setForm({ ...form, failedSuites: e.target.value })}
+                />
+              </label>
+              <button className="briefing-cta" onClick={runSimulation} disabled={running}>
+                {running ? stageLabel[stage] : 'Run Simulation'}
+              </button>
+              {error ? <div className="engineer-error">{error}</div> : null}
             </div>
-          ) : (
-            <div className="chart-empty">Configure a CI signal and run the simulation to see a real risk assessment.</div>
-          )}
-        </div>
 
-        <div className="panel simulator-history">
-          <div className="chart-card-header">Recent Deployments</div>
-          {history.length === 0 ? (
-            <div className="page-empty-state">
-              No deployments yet. Run a simulation, or push to a connected repository.
-            </div>
-          ) : (
-            <div className="operator-list">
-              {history.slice(0, 12).map((d) => {
-                const open = expandedId === d.id;
-                return (
-                  <div key={d.id} className={`deployment-entry${open ? ' open' : ''}`}>
-                    {/* A row that shows a risk score invites a click, so it has to
-                        answer one. The assessment is already loaded, so this
-                        expands in place rather than fetching a detail view. */}
-                    <button
-                      className="operator-row deployment-row-button"
-                      aria-expanded={open}
-                      onClick={() => setExpandedId(open ? null : d.id)}
-                    >
-                      <span className={`risk-pill risk-${(d.riskAssessment?.level ?? 'low').toLowerCase()}`}>
-                        {d.riskAssessment?.level ?? 'N/A'}
-                      </span>
-                      <div className="operator-row-body">
-                        <div className="operator-row-title">
-                          {d.serviceName} &middot; {d.deploymentKey}
-                          <span className={`deployment-source source-${deploymentSource(d).toLowerCase()}`}>
-                            {deploymentSource(d)}
-                          </span>
-                        </div>
-                        <div className="operator-row-meta">
-                          {d.riskAssessment?.score ?? 0}% risk &middot; {d.status} &middot; {d.environment}
-                          {d.commitSha ? ` · ${d.commitSha.slice(0, 7)}` : ''}
-                        </div>
-                      </div>
-                      <ChevronDown size={15} className="deployment-chevron" />
-                    </button>
+            <div className="panel simulator-pipeline">
+              <div className="engineer-form-header">
+                <Sparkles size={16} /> AI Simulation Pipeline
+              </div>
+              <div className="simulator-stages">
+                {STAGE_ORDER.map((s, i) => {
+                  const currentIndex = STAGE_ORDER.indexOf(stage);
+                  const reached = stage === 'done' || currentIndex >= i;
+                  return (
+                    <div key={s} className={`simulator-stage${reached ? ' active' : ''}`}>
+                      <span className="simulator-stage-dot" />
+                      {stageLabel[s]}
+                    </div>
+                  );
+                })}
+              </div>
 
-                    {open ? (
-                      <div className="deployment-detail">
-                        {d.pullRequestTitle ? (
-                          <p className="deployment-detail-title">{d.pullRequestTitle}</p>
-                        ) : null}
-
-                        {d.riskAssessment ? (
-                          <>
-                            <p className="deployment-detail-explanation">{d.riskAssessment.aiExplanation}</p>
-
-                            <div className="deployment-detail-reco">
-                              <strong>Recommendation</strong>
-                              <p>{d.riskAssessment.recommendation}</p>
-                            </div>
-
-                            {d.riskAssessment.reasons.length > 0 ? (
-                              <div className="deployment-reasons">
-                                <strong>Evidence</strong>
-                                {d.riskAssessment.reasons.map((reason, index) => (
-                                  <div key={`${d.id}-${index}`} className="deployment-reason">
-                                    <span className="deployment-reason-category">{reason.category}</span>
-                                    <span className="deployment-reason-evidence">{reason.evidence}</span>
-                                    <span className="deployment-reason-impact">impact {reason.impact}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : null}
-                          </>
-                        ) : (
-                          <p className="deployment-detail-explanation">
-                            This deployment has not been assessed yet.
-                          </p>
-                        )}
-
-                        <div className="deployment-detail-meta">
-                          {d.ownerTeam} &middot; {new Date(d.createdAt).toLocaleString()}
-                          {d.dependencies.length > 0 ? ` · depends on ${d.dependencies.join(', ')}` : ''}
-                        </div>
-                      </div>
-                    ) : null}
+              {result && assessment ? (
+                <div className="simulator-result">
+                  <div className="simulator-result-header">
+                    <span className={`risk-pill risk-${assessment.level.toLowerCase()}`}>{assessment.level}</span>
+                    <span className="simulator-result-score">{assessment.score}% risk</span>
                   </div>
-                );
-              })}
+                  <div className="simulator-result-row">
+                    <GitBranch size={13} /> {result.deploymentKey} &middot; {result.serviceName} &middot;{' '}
+                    {result.environment}
+                  </div>
+                  <div className="simulator-result-row">
+                    <ShieldAlert size={13} /> {assessment.recommendation}
+                  </div>
+                  <p className="simulator-result-explanation">{assessment.aiExplanation}</p>
+                  <button className="action-btn" onClick={() => openDeployment(result)}>
+                    Open this deployment
+                  </button>
+                </div>
+              ) : (
+                <div className="chart-empty">
+                  Fill in the CI signal and run the simulation to see a real risk assessment.
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="panel deployment-detail-panel">
+            <div className="page-empty-state">
+              Select a deployment to see what happened, or start a new simulation.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

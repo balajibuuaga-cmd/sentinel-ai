@@ -116,3 +116,40 @@ test.describe('ai copilot', () => {
     await expect(page.locator('.copilot-turn-assistant .copilot-bubble')).toBeVisible({ timeout: 20_000 });
   });
 });
+
+// The Deployments page only rendered simulations it had just run, held in
+// memory. Anything arriving from a signed GitHub webhook had nowhere to appear,
+// so a working ingestion pipeline looked like nothing was happening.
+test.describe('deployments list', () => {
+  test('the page lists stored deployments, not just this session runs', async ({ page }) => {
+    await signIn(page);
+
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes('/api/deployments') && r.status() === 200,
+        { timeout: 30_000 },
+      ),
+      page.goto('/simulator'),
+    ]);
+
+    await expect(page.getByText('Recent Deployments')).toBeVisible({ timeout: 20_000 });
+    // The seeded tenant has deployments, so rows must render without simulating.
+    await expect(page.locator('.simulator-history .operator-row').first()).toBeVisible({
+      timeout: 20_000,
+    });
+  });
+
+  test('each deployment says whether it came from GitHub or a simulation', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/simulator');
+    await expect(page.locator('.simulator-history .operator-row').first()).toBeVisible({
+      timeout: 20_000,
+    });
+
+    const badges = page.locator('.deployment-source');
+    expect(await badges.count()).toBeGreaterThan(0);
+    // Every row is attributed one way or the other.
+    const rows = await page.locator('.simulator-history .operator-row').count();
+    expect(await badges.count()).toBe(Math.min(rows, 12));
+  });
+});

@@ -4242,3 +4242,25 @@
   outline: none;
   border-color: rgba(79, 140, 255, 0.5);
 }
+
+/* Where a deployment came from: a signed GitHub webhook, or this page */
+.deployment-source {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.deployment-source.source-github {
+  background: rgba(60, 214, 224, 0.14);
+  color: var(--cyan);
+}
+
+.deployment-source.source-simulated {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-dim);
+}

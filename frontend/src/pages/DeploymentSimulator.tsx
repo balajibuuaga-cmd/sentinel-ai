@@ -33,6 +33,12 @@ const stageLabel: Record<Stage, string> = {
   done: 'Simulation complete',
 };
 
+// The deployment key records its origin: GH- for a signed GitHub webhook,
+// SIG- for a CI signal or a simulation run from this page.
+function deploymentSource(deployment: Deployment): 'GitHub' | 'Simulated' {
+  return deployment.deploymentKey.startsWith('GH-') ? 'GitHub' : 'Simulated';
+}
+
 export default function DeploymentSimulator() {
   const [form, setForm] = useState(emptyForm);
   const [stage, setStage] = useState<Stage>('idle');
@@ -41,7 +47,23 @@ export default function DeploymentSimulator() {
   const [history, setHistory] = useState<Deployment[]>([]);
   const cancelledRef = useRef(false);
 
+  // The page only ever showed simulations it had just run, held in memory, so
+  // deployments arriving from GitHub webhooks had nowhere to appear at all.
+  async function loadDeployments() {
+    try {
+      const all = await api.deployments();
+      if (!cancelledRef.current) {
+        setHistory(all);
+      }
+    } catch {
+      // The simulator still works without the list; leave it empty rather than
+      // blocking the form behind a failed fetch.
+    }
+  }
+
   useEffect(() => {
+    cancelledRef.current = false;
+    loadDeployments();
     return () => {
       cancelledRef.current = true;
     };
@@ -84,7 +106,10 @@ export default function DeploymentSimulator() {
       }
       if (cancelledRef.current) return;
       setResult(created);
-      setHistory((prev) => [created, ...prev].slice(0, 6));
+      setHistory((prev) => [created, ...prev.filter((d) => d.id !== created.id)]);
+      // Pull the authoritative list back so this simulation sits alongside
+      // anything GitHub delivered while the form was open.
+      loadDeployments();
     } catch (err) {
       if (cancelledRef.current) return;
       setError(err instanceof Error ? err.message : 'Simulation failed');
@@ -228,26 +253,36 @@ export default function DeploymentSimulator() {
           )}
         </div>
 
-        {history.length > 0 ? (
-          <div className="panel simulator-history">
-            <div className="chart-card-header">Recent Simulations</div>
+        <div className="panel simulator-history">
+          <div className="chart-card-header">Recent Deployments</div>
+          {history.length === 0 ? (
+            <div className="page-empty-state">
+              No deployments yet. Run a simulation, or push to a connected repository.
+            </div>
+          ) : (
             <div className="operator-list">
-              {history.map((d) => (
+              {history.slice(0, 12).map((d) => (
                 <div key={d.id} className="operator-row">
                   <span className={`risk-pill risk-${(d.riskAssessment?.level ?? 'low').toLowerCase()}`}>
                     {d.riskAssessment?.level ?? 'N/A'}
                   </span>
                   <div className="operator-row-body">
-                    <div className="operator-row-title">{d.serviceName} &middot; {d.deploymentKey}</div>
+                    <div className="operator-row-title">
+                      {d.serviceName} &middot; {d.deploymentKey}
+                      <span className={`deployment-source source-${deploymentSource(d).toLowerCase()}`}>
+                        {deploymentSource(d)}
+                      </span>
+                    </div>
                     <div className="operator-row-meta">
-                      {d.riskAssessment?.score ?? 0}% risk &middot; {d.status}
+                      {d.riskAssessment?.score ?? 0}% risk &middot; {d.status} &middot; {d.environment}
+                      {d.commitSha ? ` · ${d.commitSha.slice(0, 7)}` : ''}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        ) : null}
+          )}
+        </div>
       </div>
     </div>
   );

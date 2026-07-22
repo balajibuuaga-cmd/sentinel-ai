@@ -2165,9 +2165,12 @@
 
 .remediation-step-state {
   font-size: 11px;
-  color: var(--green);
+  color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding-top: 2px;
 }
 
 .remediation-step-run {
@@ -4669,4 +4672,22 @@
 .deployment-row-button.selected {
   background: rgba(79, 140, 255, 0.1);
   border-color: rgba(79, 140, 255, 0.28);
+}
+
+.remediation-step-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.remediation-step-outcome {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.remediation-step-state.performed {
+  color: var(--green);
 }

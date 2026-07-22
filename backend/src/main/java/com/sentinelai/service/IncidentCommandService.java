@@ -32,6 +32,7 @@ public class IncidentCommandService {
     private final TenantContext tenantContext;
     private final OperationalEventLogger operationalEventLogger;
     private final BackgroundJobQueueService backgroundJobQueueService;
+    private final RemediationActionDispatcher remediationActionDispatcher;
 
     public IncidentCommandService(
             IncidentRepository incidentRepository,
@@ -39,7 +40,8 @@ public class IncidentCommandService {
             AuditEventRepository auditEventRepository,
             TenantContext tenantContext,
             OperationalEventLogger operationalEventLogger,
-            BackgroundJobQueueService backgroundJobQueueService
+            BackgroundJobQueueService backgroundJobQueueService,
+            RemediationActionDispatcher remediationActionDispatcher
     ) {
         this.incidentRepository = incidentRepository;
         this.deploymentRepository = deploymentRepository;
@@ -47,6 +49,7 @@ public class IncidentCommandService {
         this.tenantContext = tenantContext;
         this.operationalEventLogger = operationalEventLogger;
         this.backgroundJobQueueService = backgroundJobQueueService;
+        this.remediationActionDispatcher = remediationActionDispatcher;
     }
 
     @Transactional
@@ -105,16 +108,24 @@ public class IncidentCommandService {
         if (incident.getStatus() == IncidentStatus.ACTIVE) {
             incident.transition(IncidentStatus.MITIGATING, request.actor(), "Remediation started.");
         }
+
+        // Perform the external action the step names, when a real integration
+        // backs it. The recorded detail is the actual outcome, so the timeline
+        // says what happened rather than a fixed description of what the step
+        // would do.
+        RemediationActionDispatcher.Outcome outcome =
+                remediationActionDispatcher.dispatch(incident, request.step(), tenantContext.tenantId());
+
         incident.addTimelineEvent(
                 request.actor(),
                 "Remediation step: " + request.step().label(),
-                request.step().detail()
+                outcome.detail()
         );
         audit(
                 request.actor(),
                 "INCIDENT_REMEDIATION_STEP",
                 incident.getIncidentKey(),
-                request.step().label() + " - " + request.step().detail()
+                request.step().label() + " [" + outcome.result() + "] - " + outcome.detail()
         );
         operationalEventLogger.info("incident.remediation_step", java.util.Map.of(
                 "incidentKey", incident.getIncidentKey(),

@@ -14,11 +14,14 @@ const PIPELINE_STEPS: { key: IncidentRemediationStep; label: string; icon: typeo
 
 const severityTone: Record<string, string> = { SEV1: 'bad', SEV2: 'warn', SEV3: 'good' };
 
-function executedSteps(incident: Incident): Set<string> {
-  const done = new Set<string>();
+// Maps each executed step to the outcome the backend recorded, e.g. "Message
+// posted to Slack." or "No Slack webhook configured...". The step is always
+// recorded; the outcome says whether an external action actually happened.
+function executedSteps(incident: Incident): Map<string, string> {
+  const done = new Map<string, string>();
   incident.timeline.forEach((event) => {
     const match = PIPELINE_STEPS.find((step) => event.label === `Remediation step: ${step.label}`);
-    if (match) done.add(match.key);
+    if (match) done.set(match.key, event.detail);
   });
   return done;
 }
@@ -151,29 +154,44 @@ export default function Incidents() {
                 no Slack, Jira or deploy-rollback integration behind these yet, so
                 the badge says "Recorded", not "Executed". */}
             <p className="remediation-note">
-              Running a step records it on the incident timeline and advances the workflow. It does
-              not yet perform the external action (Slack, Jira, rollback) itself.
+              Running a step records it on the incident and advances the workflow. Where a real
+              integration backs the step it also performs the action — a connected Slack channel is
+              notified, a linked deployment is marked rolled back — and each row shows what actually
+              happened.
             </p>
             <div className="remediation-list">
               {PIPELINE_STEPS.map((step) => {
                 const Icon = step.icon;
                 const done = doneSteps.has(step.key);
+                const outcome = doneSteps.get(step.key);
+                // A performed step reports an actual effect ("posted", "Marked
+                // ... rolled back"); a recorded one says nothing happened
+                // outside Sentinel. The outcome text is authoritative; this only
+                // colours the badge.
+                const performed = done && !!outcome && !/^No |^This incident is not|not found|already/i.test(outcome);
                 const running = runningStep === step.key;
                 return (
                   <div key={step.key} className={`remediation-step${done ? ' done' : ''}${running ? ' running' : ''}`}>
                     <span className="remediation-step-icon">
                       {done ? <Check size={14} /> : <Icon size={14} />}
                     </span>
-                    <span className="remediation-step-label">{step.label}</span>
+                    <div className="remediation-step-main">
+                      <span className="remediation-step-label">{step.label}</span>
+                      {done && outcome ? (
+                        <span className="remediation-step-outcome">{outcome}</span>
+                      ) : null}
+                    </div>
                     {done ? (
-                      <span className="remediation-step-state">Recorded</span>
+                      <span className={`remediation-step-state${performed ? ' performed' : ''}`}>
+                        {performed ? 'Performed' : 'Recorded'}
+                      </span>
                     ) : (
                       <button
                         className="remediation-step-run"
                         onClick={() => runStep(step.key)}
                         disabled={runningStep !== null || autonomousRunning}
                       >
-                        <Play size={12} /> {running ? 'Recording...' : 'Run'}
+                        <Play size={12} /> {running ? 'Running...' : 'Run'}
                       </button>
                     )}
                   </div>

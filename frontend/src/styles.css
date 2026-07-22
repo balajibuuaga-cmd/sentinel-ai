@@ -4691,3 +4691,13 @@
 .remediation-step-state.performed {
   color: var(--green);
 }
+
+/* Full paragraph, not one-line list metadata: the intro was on
+   .operator-row-meta and got clipped to "...go to a ris..." by its ellipsis. */
+.secret-shield-intro {
+  margin: 0 0 4px 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  max-width: 70ch;
+}

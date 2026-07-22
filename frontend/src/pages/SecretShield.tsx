@@ -71,7 +71,7 @@ export default function SecretShield() {
         <div className="chart-card-header">
           <ShieldCheck size={15} /> Secret Shield
         </div>
-        <p className="operator-row-meta">
+        <p className="secret-shield-intro">
           A deterministic secret scanner gated by two AI judgments. Scanner hits go to a downgrade
           gate that sees only masked values and clears confident false alarms; secret-looking lines
           the scanner missed go to a risk gate. Raw secret values never leave the server — findings

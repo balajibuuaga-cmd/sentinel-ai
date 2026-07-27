@@ -1,9 +1,12 @@
 package com.sentinelai.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
@@ -28,6 +31,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Override
     public void commence(HttpServletRequest request,
                          HttpServletResponse response,
@@ -37,12 +42,32 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
             requestId = response.getHeader("X-Request-ID");
         }
 
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("requestId", sanitizeRequestId(requestId));
+        body.put("code", "UNAUTHENTICATED");
+        body.put("message", "Authentication is required to access this resource.");
+        body.put("details", Map.of());
+        body.put("timestamp", Instant.now().toString());
+
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.getWriter().write("""
-                {"requestId":"%s","code":"UNAUTHENTICATED",\
-                "message":"Authentication is required to access this resource.",\
-                "details":{},"timestamp":"%s"}"""
-                .formatted(requestId == null ? "" : requestId, Instant.now()));
+        // Serialize via Jackson rather than string-formatting: the request id is
+        // client-controlled, and Jackson escapes it correctly so it can never
+        // break out of the JSON string or inject markup into the response.
+        objectMapper.writeValue(response.getWriter(), body);
+    }
+
+    /**
+     * A correlation id is echoed back to the caller, so the client-supplied
+     * X-Request-ID must not be trusted verbatim. Keep only the characters a real
+     * correlation id uses and cap the length, so nothing surprising reaches the
+     * response body or the logs it is later correlated against.
+     */
+    private static String sanitizeRequestId(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "";
+        }
+        String trimmed = raw.length() > 64 ? raw.substring(0, 64) : raw;
+        return trimmed.replaceAll("[^A-Za-z0-9_-]", "");
     }
 }

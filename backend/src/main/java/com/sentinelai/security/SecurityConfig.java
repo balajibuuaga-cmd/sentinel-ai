@@ -31,6 +31,12 @@ public class SecurityConfig {
             RestAuthenticationEntryPoint authenticationEntryPoint
     ) throws Exception {
         return http
+                // CSRF protection is intentionally disabled. This is a stateless API
+                // (no server session below) authenticated solely by a Bearer JWT in the
+                // Authorization header — never by a cookie. CSRF attacks rely on the
+                // browser auto-attaching ambient cookie credentials to a forged request;
+                // with no auth cookie there is nothing to forge, and enabling CSRF would
+                // break the SPA, which carries no CSRF token. See JwtAuthenticationFilter.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // Anonymous requests must answer 401, not the default 403, so

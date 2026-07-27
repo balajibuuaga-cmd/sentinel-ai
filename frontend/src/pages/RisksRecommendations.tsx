@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ShieldAlert, Rocket, Boxes, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { api } from '../api/client';
 import { buildUnifiedRisks, humanize } from '../api/transform';
 import type { UnifiedRisk } from '../api/transform';

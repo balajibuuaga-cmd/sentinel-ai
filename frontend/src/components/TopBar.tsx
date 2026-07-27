@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Search, Bell, Zap, Settings, ShieldCheck, LogOut } from 'lucide-react';
 import type { HeaderStatsData } from '../types/dashboard';
 

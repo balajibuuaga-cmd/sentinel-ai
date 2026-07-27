@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { Sparkles, CheckCircle2, ChevronDown, Maximize2, SendHorizontal } from 'lucide-react';
 import { api } from '../api/client';
 import HolographicAvatar from './HolographicAvatar';

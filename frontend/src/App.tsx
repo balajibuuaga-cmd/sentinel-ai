@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import { api, logout } from './api/client';

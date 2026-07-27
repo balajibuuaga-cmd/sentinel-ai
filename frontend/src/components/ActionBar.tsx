@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Play, FileText, AlertOctagon, ShieldCheck, Hexagon } from 'lucide-react';
 
 const actions = [

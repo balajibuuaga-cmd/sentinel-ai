@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { authStatus, login, verifyMfaChallenge } from '../api/client';
 import HolographicAvatar from '../components/HolographicAvatar';
 

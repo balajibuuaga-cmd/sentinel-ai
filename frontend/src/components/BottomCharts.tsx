@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { Activity, ArrowRight, Plug, TrendingUp, WebhookOff } from 'lucide-react';
 import type { BusinessImpactData, RiskHeatmapSlice, RiskTrendPoint } from '../types/dashboard';
 import type { RiskProjection } from '../api/transform';

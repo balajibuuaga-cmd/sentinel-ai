@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { Boxes, LayoutGrid, RefreshCw, Maximize2, Plus, Minus } from 'lucide-react';
 import ServiceGraph from './ServiceGraph';
 import EngineeringUniverse3D, { type EngineeringUniverse3DHandle } from './EngineeringUniverse3D';

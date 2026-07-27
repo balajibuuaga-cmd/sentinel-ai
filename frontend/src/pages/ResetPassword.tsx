@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router';
 import { confirmPasswordReset } from '../api/client';
 import HolographicAvatar from '../components/HolographicAvatar';
 

@@ -100,6 +100,8 @@ class SentinelAiApplicationTests {
                 .andExpect(status().is2xxSuccessful())
                 .andExpect(result -> assertThat(result.getResponse().getHeader("X-Content-Type-Options")).isEqualTo("nosniff"))
                 .andExpect(result -> assertThat(result.getResponse().getHeader("X-Frame-Options")).isEqualTo("DENY"))
+                .andExpect(result -> assertThat(result.getResponse().getHeader("Strict-Transport-Security")).contains("max-age=31536000"))
+                .andExpect(result -> assertThat(result.getResponse().getHeader("Content-Security-Policy")).contains("default-src 'self'"))
                 .andExpect(result -> assertThat(result.getResponse().getHeader("X-Request-ID")).isNotBlank())
                 .andExpect(result -> assertThat(result.getResponse().getHeader("X-RateLimit-Limit")).isNotBlank())
                 .andExpect(result -> assertThat(result.getResponse().getHeader("X-RateLimit-Backend")).isEqualTo("memory"));

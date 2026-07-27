@@ -6,6 +6,11 @@ on:
     branches:
       - main
 
+# Least privilege by default: jobs get read-only access to the repo unless a job
+# explicitly asks for more (CodeQL needs security-events: write to upload results).
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -90,3 +95,72 @@ jobs:
 
       - name: Terraform validate
         run: terraform -chdir=infra/aws validate
+
+  # Automated security scanning. The in-app Secret Shield scans pasted content;
+  # this scans the repository itself on every push and PR, so a committed
+  # credential or a vulnerable dependency is caught before it ships.
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so the secret scanner can see every commit, not just the tip.
+          fetch-depth: 0
+
+      - name: Scan git history for leaked secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan dependencies and IaC for known vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          # Only fail on issues that have a fix available; unfixable transitive
+          # advisories are reported but do not block the pipeline.
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Audit frontend npm dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+  # Static analysis (SAST). CodeQL reads the Java and TypeScript for injection,
+  # auth, and data-flow bugs and reports them in the repo's Security tab.
+  codeql:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [java-kotlin, javascript-typescript]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3

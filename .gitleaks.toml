@@ -1,0 +1,25 @@
+# gitleaks configuration for Sentinel AI.
+#
+# Extends gitleaks' full default ruleset (so real leaks are still caught) and
+# allowlists only the Secret Shield demonstration and test fixtures. Those files
+# intentionally contain secret-SHAPED strings so the scanner has something to
+# detect and demo against:
+#   - AKIAIOSFODNN7EXAMPLE — AWS's own published, non-functional example key
+#   - postgres://app:s3cr3tPassw0rd@db.internal — a fabricated connection string
+# Neither is a real credential, so gitleaks must not fail CI on them. The
+# allowlist is scoped to these two paths plus the exact placeholder values, so it
+# cannot mask a genuine secret committed anywhere else.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Secret Shield demo and test fixtures (intentional fake secrets)"
+paths = [
+  '''frontend/src/pages/SecretShield\.tsx''',
+  '''backend/src/test/java/com/sentinelai/SecretShieldTests\.java''',
+]
+regexes = [
+  '''AKIAIOSFODNN7EXAMPLE''',
+  '''s3cr3tPassw0rd''',
+]

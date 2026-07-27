@@ -53,7 +53,7 @@ export default function Incidents() {
   }, []);
 
   const selected = incidents.find((i) => i.id === selectedId) ?? null;
-  const doneSteps = selected ? executedSteps(selected) : new Set<string>();
+  const doneSteps = selected ? executedSteps(selected) : new Map<string, string>();
 
   function applyUpdated(updated: Incident) {
     setIncidents((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));

@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.12</version>
+        <version>3.5.14</version>
         <relativePath/>
     </parent>
 
@@ -19,6 +19,18 @@
 
     <properties>
         <java.version>17</java.version>
+        <!--
+          Pin managed transitive dependencies to patched versions ahead of what
+          the Spring Boot 3.5.14 BOM ships, to clear newly-disclosed 2026 CVEs
+          flagged by Trivy (Tomcat auth-bypass, Netty request smuggling / DoS,
+          Jackson code execution, PostgreSQL). Jackson has no fix on the 2.19
+          line, so it moves to 2.21.4. Revisit when a later Spring Boot patch
+          adopts these or newer.
+        -->
+        <tomcat.version>10.1.55</tomcat.version>
+        <netty.version>4.1.136.Final</netty.version>
+        <jackson-bom.version>2.21.4</jackson-bom.version>
+        <postgresql.version>42.7.12</postgresql.version>
     </properties>
 
     <dependencies>

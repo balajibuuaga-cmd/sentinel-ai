@@ -145,7 +145,13 @@ public class ProviderSignalSyncService {
                 throw new IllegalStateException("Jira cloud id is not configured.");
             }
             String jql = java.net.URLEncoder.encode("priority in (Blocker,Critical,High) AND updated >= -14d ORDER BY updated DESC", java.nio.charset.StandardCharsets.UTF_8);
-            JsonNode response = getJson("https://api.atlassian.com/ex/jira/" + jiraCloudId + "/rest/api/3/search?maxResults=5&jql=" + jql, token);
+            // Atlassian removed the old /rest/api/3/search endpoint (it now returns
+            // HTTP 410 Gone); the replacement is /rest/api/3/search/jql. That endpoint
+            // returns only id and key unless fields are named explicitly, so request
+            // the ones the ingestion below reads. The issues[].fields shape is
+            // otherwise unchanged, so the parsing loop stays the same.
+            JsonNode response = getJson("https://api.atlassian.com/ex/jira/" + jiraCloudId
+                    + "/rest/api/3/search/jql?maxResults=5&fields=summary,priority,status,issuetype,labels&jql=" + jql, token);
             JsonNode issues = response.path("issues");
             int count = issues.isArray() ? issues.size() : 0;
             int ingested = 0;

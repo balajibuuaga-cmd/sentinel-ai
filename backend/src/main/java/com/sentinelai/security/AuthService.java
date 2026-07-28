@@ -1,8 +1,10 @@
 package com.sentinelai.security;
 
 import com.sentinelai.model.AuditEvent;
+import com.sentinelai.model.Tenant;
 import com.sentinelai.model.User;
 import com.sentinelai.repository.AuditEventRepository;
+import com.sentinelai.repository.TenantRepository;
 import com.sentinelai.repository.UserRepository;
 import com.sentinelai.service.EmailService;
 import com.sentinelai.service.MfaChallengeStore;
@@ -35,6 +37,7 @@ public class AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
+    private final TenantRepository tenantRepository;
     private final AuditEventRepository auditEventRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -46,6 +49,7 @@ public class AuthService {
 
     public AuthService(
             UserRepository userRepository,
+            TenantRepository tenantRepository,
             AuditEventRepository auditEventRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
@@ -56,6 +60,7 @@ public class AuthService {
             MfaChallengeStore mfaChallengeStore
     ) {
         this.userRepository = userRepository;
+        this.tenantRepository = tenantRepository;
         this.auditEventRepository = auditEventRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -132,9 +137,17 @@ public class AuthService {
         PasswordPolicy.validate(request.password());
 
         String tenantId = slugify(request.organizationName());
+        String organizationName = request.organizationName().trim();
+        // The users.tenant_id foreign key requires the tenant row to exist first.
+        // slugify appends a random suffix so tenantId is effectively unique per
+        // signup, but guard with existsById so a rare collision reuses the tenant
+        // rather than failing on the primary key.
+        if (!tenantRepository.existsById(tenantId)) {
+            tenantRepository.save(new Tenant(tenantId, organizationName, Instant.now()));
+        }
         User user = new User(
                 tenantId,
-                request.organizationName().trim(),
+                organizationName,
                 email,
                 passwordEncoder.encode(request.password()),
                 "ADMIN",

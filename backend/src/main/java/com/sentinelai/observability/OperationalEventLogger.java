@@ -43,7 +43,25 @@ public class OperationalEventLogger {
     }
 
     private String quote(Object value) {
-        String text = String.valueOf(value == null ? "" : value);
-        return "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        String raw = String.valueOf(value == null ? "" : value);
+        // Escape the delimiters, then neutralize control characters so a field
+        // value can never forge a new log line (CWE-117). Some fields are
+        // externally sourced — repository and service names from webhooks — and
+        // must not be able to break out of their quoted slot with a newline.
+        StringBuilder out = new StringBuilder(raw.length() + 2);
+        out.append('"');
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            switch (c) {
+                case '\\' -> out.append("\\\\");
+                case '"' -> out.append("\\\"");
+                case '\n' -> out.append("\\n");
+                case '\r' -> out.append("\\r");
+                case '\t' -> out.append("\\t");
+                default -> out.append(c < 0x20 ? ' ' : c);
+            }
+        }
+        out.append('"');
+        return out.toString();
     }
 }

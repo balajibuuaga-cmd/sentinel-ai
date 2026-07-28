@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TeamService {
@@ -61,6 +62,7 @@ public class TeamService {
                 .toList();
     }
 
+    @Transactional
     public TeamMemberView invite(TeamInviteRequest request) {
         validateRole(request.role());
         String email = request.email().trim().toLowerCase(Locale.ROOT);
@@ -93,6 +95,7 @@ public class TeamService {
         return toView(user, tenantContext.currentUsername());
     }
 
+    @Transactional
     public TeamMemberView updateRole(Long memberId, TeamRoleUpdateRequest request) {
         validateRole(request.role());
         User user = findInTenant(memberId);
@@ -105,6 +108,7 @@ public class TeamService {
         return toView(user, tenantContext.currentUsername());
     }
 
+    @Transactional
     public void removeMember(Long memberId) {
         User user = findInTenant(memberId);
         if (isCurrentUser(user)) {

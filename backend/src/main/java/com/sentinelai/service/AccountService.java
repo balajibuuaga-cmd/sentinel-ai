@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AccountService {
@@ -52,6 +53,7 @@ public class AccountService {
         );
     }
 
+    @Transactional
     public MfaEnrollResponse enrollMfa() {
         User user = currentUser();
         String secret = totpService.generateSecret();
@@ -61,6 +63,7 @@ public class AccountService {
         return new MfaEnrollResponse(secret, totpService.otpauthUrl(secret, user.getEmail()));
     }
 
+    @Transactional
     public void confirmMfa(MfaCodeRequest request) {
         User user = currentUser();
         if (user.getPendingMfaSecret() == null) {
@@ -74,6 +77,7 @@ public class AccountService {
         audit(user, "MFA_ENABLED", "Two-factor authentication was enabled.");
     }
 
+    @Transactional
     public void disableMfa(MfaDisableRequest request) {
         User user = currentUser();
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -84,6 +88,7 @@ public class AccountService {
         audit(user, "MFA_DISABLED", "Two-factor authentication was disabled.");
     }
 
+    @Transactional
     public void changePassword(ChangePasswordRequest request) {
         User user = currentUser();
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {

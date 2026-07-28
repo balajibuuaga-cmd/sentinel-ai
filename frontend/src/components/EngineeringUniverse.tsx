@@ -1,9 +1,15 @@
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Boxes, LayoutGrid, RefreshCw, Maximize2, Plus, Minus } from 'lucide-react';
 import ServiceGraph from './ServiceGraph';
-import EngineeringUniverse3D, { type EngineeringUniverse3DHandle } from './EngineeringUniverse3D';
+import type { EngineeringUniverse3DHandle } from './EngineeringUniverse3D';
 import type { ServiceEdge, ServiceNode } from '../types/dashboard';
+
+// Three.js (~250 kB gzipped) is the heaviest thing on the dashboard. Load it
+// only when the 3D view actually mounts, so the command center shell and its
+// data paint immediately instead of waiting on the WebGL bundle. The type import
+// above is erased at compile time and adds nothing to the bundle.
+const EngineeringUniverse3D = lazy(() => import('./EngineeringUniverse3D'));
 
 const tabs = ['Services', 'Dependencies', 'Health', 'Risks'];
 
@@ -62,14 +68,16 @@ export default function EngineeringUniverse({ nodes, edges, riskScores, onRefres
       <div className={mode === '3d' ? 'universe-canvas-3d-wrap' : 'universe-canvas'}>
         {mode === '3d' ? (
           <>
-            <EngineeringUniverse3D
-              ref={universeRef}
-              nodes={nodes}
-              edges={edges}
-              selectedId={selected}
-              riskScores={riskScores}
-              onNodeClick={(node) => setSelected(node.id)}
-            />
+            <Suspense fallback={<div className="universe-canvas-loading">Loading 3D universe…</div>}>
+              <EngineeringUniverse3D
+                ref={universeRef}
+                nodes={nodes}
+                edges={edges}
+                selectedId={selected}
+                riskScores={riskScores}
+                onNodeClick={(node) => setSelected(node.id)}
+              />
+            </Suspense>
             <div className="universe-zoom-controls">
               <button className="icon-pill small" onClick={() => universeRef.current?.zoomIn()} title="Zoom in">
                 <Plus size={14} />

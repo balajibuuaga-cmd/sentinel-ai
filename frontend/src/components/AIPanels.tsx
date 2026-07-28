@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router';
 import { Sparkles, CheckCircle2, ChevronDown, Maximize2, SendHorizontal } from 'lucide-react';
 import { api } from '../api/client';
-import HolographicAvatar from './HolographicAvatar';
 import type { ExecutiveBriefing as ExecutiveBriefingData } from '../api/types';
+
+// The avatar is WebGL (Three.js). Lazy-load it so it shares the deferred 3D
+// bundle with the Engineering Universe rather than blocking first paint.
+const HolographicAvatar = lazy(() => import('./HolographicAvatar'));
 
 const SUGGESTIONS = [
   'Should we deploy payment-api?',
@@ -90,7 +93,9 @@ export function AICopilot() {
       </div>
 
       <div className="copilot-avatar-wrap">
-        <HolographicAvatar active={pending} size={140} />
+        <Suspense fallback={<div style={{ width: 140, height: 140 }} aria-hidden="true" />}>
+          <HolographicAvatar active={pending} size={140} />
+        </Suspense>
       </div>
 
       {conversation.length === 0 ? (

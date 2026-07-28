@@ -646,6 +646,15 @@
   background: radial-gradient(circle at 50% 30%, rgba(34, 211, 238, 0.08), transparent 60%), #05070f;
 }
 
+.universe-canvas-loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: rgba(148, 163, 184, 0.75);
+}
+
 .universe-canvas-3d-wrap .universe-3d-canvas {
   width: 100% !important;
   height: 100% !important;

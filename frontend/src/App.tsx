@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Routes, Route, Navigate, useNavigate, useSearchParams, useLocation } from 'react-router';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
+import ErrorBoundary from './components/ErrorBoundary';
 import { api, logout } from './api/client';
 import type { IntegrationProvider } from './api/types';
 import { useDashboard } from './hooks/useDashboard';
@@ -76,6 +77,7 @@ function AuthGate({ onAuthenticated }: { onAuthenticated: () => void }) {
 
 function AuthenticatedApp({ data, refresh }: { data: DashboardData; refresh: () => void }) {
   useIntegrationOAuthCallback();
+  const location = useLocation();
 
   function handleLogout() {
     logout();
@@ -92,7 +94,8 @@ function AuthenticatedApp({ data, refresh }: { data: DashboardData; refresh: () 
           onLogout={handleLogout}
         />
 
-        <Suspense fallback={<div className="page-empty-state">Loading...</div>}>
+        <ErrorBoundary resetKey={location.pathname}>
+          <Suspense fallback={<div className="page-empty-state">Loading...</div>}>
           <Routes>
             <Route path="/" element={<CommandCenter data={data} refresh={refresh} />} />
             <Route path="/briefing" element={<AIBriefing />} />
@@ -121,7 +124,8 @@ function AuthenticatedApp({ data, refresh }: { data: DashboardData; refresh: () 
             <Route path="/reset-password" element={<Navigate to="/" replace />} />
             <Route path="/auth/cognito/callback" element={<Navigate to="/" replace />} />
           </Routes>
-        </Suspense>
+          </Suspense>
+        </ErrorBoundary>
       </div>
     </div>
   );

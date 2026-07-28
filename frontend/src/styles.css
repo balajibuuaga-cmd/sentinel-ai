@@ -10,6 +10,35 @@
   line-height: 1.6;
 }
 
+.error-boundary-card {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 28px 26px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel, rgba(255, 255, 255, 0.02));
+  text-align: center;
+}
+
+.error-boundary-card h2 {
+  font-size: 17px;
+  margin: 0 0 8px;
+  color: var(--text, #e6edf3);
+}
+
+.error-boundary-card p {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  margin: 0 0 18px;
+  line-height: 1.55;
+}
+
+.error-boundary-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
 .full-screen-state code {
   color: var(--cyan);
 }

@@ -44,7 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(
         properties = {
                 "spring.jpa.hibernate.ddl-auto=validate",
-                "sentinel.jwt.secret=test-secret-with-enough-length",
+                "sentinel.jwt.secret=test-secret-with-at-least-thirty-two-bytes",
                 "sentinel.github.webhook-secret=test-webhook-secret",
                 "sentinel.security.rate-limit.auth-requests-per-minute=10000"
         }
@@ -485,7 +485,7 @@ class SentinelAiApplicationTests {
                 "custom:organization_name",
                 jwksJson(kid, (RSAPublicKey) keyPair.getPublic())
         );
-        JwtService jwtService = new JwtService(objectMapper, "hybrid-test-secret-with-enough-length");
+        JwtService jwtService = new JwtService(objectMapper, "hybrid-test-secret-with-at-least-thirty-two-bytes");
         TokenAuthenticationService tokenAuthenticationService = new TokenAuthenticationService(
                 objectMapper,
                 jwtService,

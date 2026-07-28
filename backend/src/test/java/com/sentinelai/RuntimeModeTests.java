@@ -26,7 +26,7 @@ class RuntimeModeTests {
 @SpringBootTest(
         properties = {
                 "spring.jpa.hibernate.ddl-auto=validate",
-                "sentinel.jwt.secret=test-secret-with-enough-length",
+                "sentinel.jwt.secret=test-secret-with-at-least-thirty-two-bytes",
                 "sentinel.github.webhook-secret=test-webhook-secret",
                 "sentinel.api.enabled=false",
                 "sentinel.worker.enabled=true"
@@ -54,7 +54,7 @@ class WorkerModeTests {
 @SpringBootTest(
         properties = {
                 "spring.jpa.hibernate.ddl-auto=validate",
-                "sentinel.jwt.secret=test-secret-with-enough-length",
+                "sentinel.jwt.secret=test-secret-with-at-least-thirty-two-bytes",
                 "sentinel.github.webhook-secret=test-webhook-secret",
                 "sentinel.api.enabled=true",
                 "sentinel.worker.enabled=false"

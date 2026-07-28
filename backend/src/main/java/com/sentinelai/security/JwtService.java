@@ -24,8 +24,18 @@ public class JwtService {
     private final byte[] secret;
 
     public JwtService(ObjectMapper objectMapper, @Value("${sentinel.jwt.secret}") String secret) {
+        byte[] key = secret.getBytes(StandardCharsets.UTF_8);
+        // HS256's security rests entirely on the secret's entropy. RFC 7518 requires
+        // a key at least as long as the hash output (256 bits / 32 bytes); a shorter
+        // secret is brute-forceable. Fail fast at startup rather than run on a weak
+        // key, so a misconfigured deployment can never silently downgrade auth.
+        if (key.length < 32) {
+            throw new IllegalStateException(
+                    "sentinel.jwt.secret must be at least 32 bytes (256 bits) for HS256; got "
+                            + key.length + " bytes.");
+        }
         this.objectMapper = objectMapper;
-        this.secret = secret.getBytes(StandardCharsets.UTF_8);
+        this.secret = key;
     }
 
     public String issue(DemoUser user) {

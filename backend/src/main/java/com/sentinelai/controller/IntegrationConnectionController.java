@@ -2,6 +2,7 @@ package com.sentinelai.controller;
 
 import com.sentinelai.model.IntegrationConnection;
 import com.sentinelai.model.IntegrationInstallRequest;
+import com.sentinelai.model.UpdateExternalAccountRequest;
 import com.sentinelai.model.IntegrationProvider;
 import com.sentinelai.model.IntegrationSyncEvent;
 import com.sentinelai.service.IntegrationConnectionService;
@@ -49,9 +50,9 @@ public class IntegrationConnectionController {
     @PutMapping("/{id}/account")
     public IntegrationConnection updateAccount(
             @PathVariable long id,
-            @RequestBody java.util.Map<String, String> body
+            @Valid @RequestBody UpdateExternalAccountRequest request
     ) {
-        return service.updateExternalAccount(id, body.get("externalAccount"));
+        return service.updateExternalAccount(id, request.externalAccount());
     }
 
     @PostMapping("/{id}/sync")

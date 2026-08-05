@@ -87,7 +87,7 @@ function AuthenticatedApp({ data, refresh }: { data: DashboardData; refresh: () 
   return (
     <div className="shell">
       <Sidebar health={data.engineeringHealth} incidentCount={data.incidentCount} riskCount={data.riskCount} />
-      <div className="main">
+      <main className="main">
         <TopBar
           header={data.header}
           notificationCount={data.businessImpact.attentionIntegrations + data.businessImpact.failedWebhooks}
@@ -126,7 +126,7 @@ function AuthenticatedApp({ data, refresh }: { data: DashboardData; refresh: () 
           </Routes>
           </Suspense>
         </ErrorBoundary>
-      </div>
+      </main>
     </div>
   );
 }

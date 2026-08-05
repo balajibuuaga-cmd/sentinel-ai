@@ -32,7 +32,7 @@ export default function ServiceDetailPanel({ brain, serviceName, onClose }: Prop
           <div className="service-detail-name">{service.serviceName}</div>
           <div className="service-detail-sub">{service.tier} &middot; {service.runtime}</div>
         </div>
-        <button className="icon-pill small" onClick={onClose}>
+        <button className="icon-pill small" onClick={onClose} aria-label="Close service details">
           <X size={14} />
         </button>
       </div>

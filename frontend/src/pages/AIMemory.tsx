@@ -80,7 +80,7 @@ export default function AIMemory() {
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && ask()}
             />
-            <button className="copilot-send" onClick={ask} disabled={asking}>
+            <button className="copilot-send" onClick={ask} disabled={asking} aria-label="Send message">
               <Send size={15} />
             </button>
           </div>
